@@ -1,0 +1,20 @@
+<% d = section.data %>
+<section class="s" id="<%= d.id %>">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num"><%= d.num %></div>
+      <h2 class="s-title"><%= d.title %></h2>
+      <div class="s-sub"><%= d.subtitle %></div>
+    </div>
+
+    <div class="bullets">
+      <% d.bullets.each do |b| %>
+        <div class="bullet">
+          <div class="tag"><%= b.tag %></div>
+          <h4><%= b.heading %></h4>
+          <p><%= (b.body_html || b.body).to_s.html_safe %></p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>

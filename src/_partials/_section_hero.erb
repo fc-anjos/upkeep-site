@@ -1,0 +1,34 @@
+<% d = section.data %>
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="bar"></span><%= d.eyebrow %></div>
+    <h1 class="tagline">
+      <%= d.tagline_main %> <span class="orange"><%= d.tagline_accent %></span>
+      <span class="soft"><%= d.tagline_soft %></span>
+    </h1>
+    <p class="lede"><%= d.lede %></p>
+    <p class="lede-two"><%= d.lede_two_html.html_safe %></p>
+
+    <div class="diagram dgm">
+      <div class="diagram-label"><%= d.diagram_label %></div>
+      <%= section.content.html_safe %>
+      <div class="diagram-legend">
+        <span class="li-ring"><i></i>fragment</span>
+        <span class="li-orange"><i></i>write</span>
+        <span class="li-blue"><i></i>push</span>
+      </div>
+    </div>
+
+    <div class="codepair">
+      <% d.codepair.each do |card| %>
+        <div class="codecard">
+          <div class="codehead">
+            <span class="filename"><%= card.filename %></span>
+            <span class="pill"><%= card.pill %></span>
+          </div>
+<pre class="code"><%= card.code_html.chomp.html_safe %></pre>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>

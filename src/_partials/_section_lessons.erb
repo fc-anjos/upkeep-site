@@ -1,0 +1,50 @@
+<% d = section.data %>
+<section class="s" id="<%= d.id %>">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num"><%= d.num %></div>
+      <h2 class="s-title"><%= d.title %></h2>
+      <div class="s-sub"><%= d.subtitle %></div>
+    </div>
+
+    <p style="color:var(--ink-2); max-width: 72ch; margin: -20px 0 28px; line-height: 1.6;">
+      <%= d.lede %>
+    </p>
+
+    <div class="lessons-grid">
+      <% d.cards.each do |c| %>
+        <div class="lesson-card">
+          <div class="lesson-idx"><span>Lesson</span><span class="big"><%= c.big %></span><span class="kind"><%= c.kind_label %></span></div>
+          <div class="lesson-body">
+            <div class="then-block">
+              <span class="lab">Then</span>
+              <p><%= (c.past_html || c.past).to_s.html_safe %></p>
+            </div>
+            <div>
+              <span class="lab now">Now, in Upkeep</span>
+              <p><%= (c.present_html || c.present).to_s.html_safe %></p>
+            </div>
+          </div>
+          <div class="lesson-diagram" data-diagram="<%= c.diagram %>">
+            <div class="cap"><span><%= c.diagram_then %></span>&nbsp;·&nbsp;<span class="now"><%= c.diagram_now %></span></div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <h3 style="font-family: var(--font-display); font-weight: 500; font-size: 19px; letter-spacing: -0.01em; margin: 44px 0 0;"><%= d.invariants_title %></h3>
+    <p style="font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); letter-spacing: 0.04em; margin: 4px 0 16px;"><%= d.invariants_subtitle %></p>
+
+    <div class="invariants">
+      <% d.invariants.each do |i| %>
+        <div class="invariant">
+          <div class="n"><%= i.n %></div>
+          <div>
+            <h5><%= i.heading %></h5>
+            <p><%= (i.body_html || i.body).to_s.html_safe %></p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>

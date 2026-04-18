@@ -1,0 +1,31 @@
+<% d = section.data %>
+<section class="s" id="<%= d.id %>">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num"><%= d.num %></div>
+      <h2 class="s-title"><%= d.title %></h2>
+      <div class="s-sub"><%= d.subtitle %></div>
+    </div>
+
+    <table class="compare">
+      <thead>
+        <tr>
+          <% d.headers.each_with_index do |h, i| %>
+            <% w = d.header_widths&.dig(i) %>
+            <th<%= w ? %( style="width:#{w}").html_safe : "" %>><%= h.html_safe %></th>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <% d.rows.each do |r| %>
+          <tr>
+            <td class="row-h"><%= r.row_header %></td>
+            <% r.cells.each do |cell| %>
+              <td><%= cell.html_safe %></td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -21,6 +21,12 @@ Bridgetown.configure do |config|
   # Available options are `erb` (default), `serbea`, or `liquid`
   template_engine "erb"
 
+  # Marketing page sections as a non-output collection. Each file in
+  # `src/_sections/` is a content resource (YAML frontmatter + optional body).
+  # Ordered by the `order` frontmatter key; rendered from `src/index.erb` via
+  # `<%= render "section_#{s.data.kind}", section: s %>`.
+  collections.sections = { output: false, sort_by: "order" }
+
   # Other options you might want to investigate:
 
   # See list of timezone values here:

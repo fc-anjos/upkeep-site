@@ -1,0 +1,51 @@
+<% d = section.data %>
+<section class="s" id="<%= d.id %>">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num"><%= d.num %></div>
+      <h2 class="s-title"><%= d.title %></h2>
+      <div class="s-sub"><%= d.subtitle %></div>
+    </div>
+
+    <p style="color:var(--ink-2); max-width: 72ch; margin: -20px 0 28px; line-height: 1.6;">
+      <%= d.lede_html.html_safe %>
+    </p>
+
+    <div class="fanout-patterns">
+      <% d.patterns.each do |p| %>
+        <div class="pattern">
+          <span class="pattern-tag"><%= p.tag %></span>
+          <h4><%= p.heading %></h4>
+          <p><%= p.body %></p>
+          <%= p.svg.html_safe %>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="perf">
+      <div class="box">
+        <h5><%= d.throughput.title %></h5>
+        <% d.throughput.bars.each do |b| %>
+          <div class="bar-row">
+            <span class="label"><%= b.label %></span>
+            <span class="bar<%= b.bar_class.to_s.empty? ? "" : " #{b.bar_class}" %>"><i style="width:<%= b.width %>"></i></span>
+            <span class="num"><%= b.num %></span>
+          </div>
+        <% end %>
+      </div>
+      <div class="box">
+        <h5><%= d.latency.title %></h5>
+        <div class="stats">
+          <% d.latency.stats.each do |s| %>
+            <div class="stat">
+              <div class="n"><%= s.n %><span class="unit"><%= s.unit %></span></div>
+              <div class="lbl"><%= s.label %></div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer"><%= d.disclaimer %></div>
+  </div>
+</section>

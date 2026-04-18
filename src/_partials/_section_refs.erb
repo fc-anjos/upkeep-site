@@ -1,0 +1,23 @@
+<% d = section.data %>
+<section class="s" id="<%= d.id %>">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num"><%= d.num %></div>
+      <h2 class="s-title"><%= d.title %></h2>
+      <div class="s-sub"><%= d.subtitle %></div>
+    </div>
+    <div class="priorart">
+      <div>
+        <% d.paragraphs.each do |p| %>
+          <p><%= p %></p>
+        <% end %>
+      </div>
+      <dl class="refs">
+        <% d.refs.each do |r| %>
+          <dt><%= r.term %></dt>
+          <dd><%= r.citation_html.html_safe %></dd>
+        <% end %>
+      </dl>
+    </div>
+  </div>
+</section>

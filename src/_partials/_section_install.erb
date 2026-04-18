@@ -1,0 +1,28 @@
+<% d = section.data %>
+<section class="s" id="<%= d.id %>">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num"><%= d.num %></div>
+      <h2 class="s-title"><%= d.title %></h2>
+      <div class="s-sub"><%= d.subtitle %></div>
+    </div>
+
+    <div class="codepair" style="margin-top:0;">
+      <% d.codepair.each do |c| %>
+        <div class="codecard">
+          <div class="codehead"><span class="filename"><%= c.filename %></span><span class="pill"><%= c.pill %></span></div>
+<pre class="code"><%= c.code_html.chomp.html_safe %></pre>
+        </div>
+      <% end %>
+    </div>
+
+    <div style="display:flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; align-items: center;">
+      <% d.ctas.each do |c| %>
+        <a href="<%= c.href %>" class="btn <%= c.variant %>" style="text-decoration:none; padding: 9px 16px; font-size: 13px;"><%= c.label %></a>
+      <% end %>
+      <span style="margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);">
+        <%= d.cta_tagline_html.html_safe %>
+      </span>
+    </div>
+  </div>
+</section>

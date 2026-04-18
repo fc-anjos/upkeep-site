@@ -1,0 +1,7 @@
+---
+layout: default
+title: "upkeep · incremental view maintenance for Rails"
+---
+<% site.collections.sections.resources.sort_by { |s| s.data.order }.each do |s| %>
+<%= render "section_#{s.data.kind}", section: s %>
+<% end %>

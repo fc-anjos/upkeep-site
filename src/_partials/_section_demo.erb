@@ -1,0 +1,43 @@
+<% d = section.data %>
+<section class="s" id="<%= d.id %>" data-demo>
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num"><%= d.num %></div>
+      <h2 class="s-title"><%= d.title %></h2>
+      <div class="s-sub"><%= d.subtitle %></div>
+    </div>
+    <p style="color:var(--ink-2); max-width: 66ch; margin: -20px 0 28px; line-height: 1.55;">
+      <%= d.lede_html.html_safe %>
+    </p>
+
+    <div class="demo-shell">
+      <div class="demo-panes">
+        <% d.panes.each do |p| %>
+          <div class="browser" data-pane="<%= p.pane %>">
+            <div class="browser-chrome">
+              <div class="dots"><i></i><i></i><i></i></div>
+              <div class="addr"><%= p.addr %></div>
+              <div class="session-tag <%= p.tag_class %>"><%= p.tag_label %></div>
+            </div>
+            <div class="browser-body"><div class="board"></div></div>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="demo-ctrl">
+        <% d.controls.each do |c| %>
+          <button class="btn <%= c.variant %>" data-act="<%= c.act %>"><%= c.label %></button>
+        <% end %>
+        <span style="margin-left:auto; color: var(--ink-4);"><%= d.hint %></span>
+      </div>
+
+      <div class="demo-log" id="demoLog"></div>
+
+      <div class="kv">
+        <% d.kv.each do |k| %>
+          <span><%= k.label %>: <b id="<%= k.id %>"><%= k.value %></b></span>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</section>
