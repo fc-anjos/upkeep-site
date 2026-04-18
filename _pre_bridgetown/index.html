@@ -1,0 +1,1571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>upkeep · incremental view maintenance for Rails</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --paper:      #f3ede2;
+  --paper-2:    #ebe3d4;
+  --paper-rule: #d9cfbb;
+  --ink:        #1a1713;
+  --ink-2:      #3a352d;
+  --ink-3:      #6b6457;
+  --ink-4:      #a69e8e;
+
+  /* subtle accents — warm orange + muted slate blue */
+  --orange:     oklch(62% 0.16 48);
+  --orange-ink: oklch(48% 0.14 48);
+  --orange-bg:  oklch(92% 0.05 55);
+  --blue:       oklch(52% 0.09 248);
+  --blue-bg:    oklch(92% 0.03 248);
+
+  --hl: rgba(26, 23, 19, 0.06);
+
+  --font-prose:   "IBM Plex Sans", system-ui, sans-serif;
+  --font-display: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, monospace;
+}
+
+body[data-accents="false"] {
+  --orange:     var(--ink);
+  --orange-ink: var(--ink);
+  --orange-bg:  var(--paper-2);
+  --blue:       var(--ink-3);
+  --blue-bg:    var(--paper-2);
+}
+
+* { box-sizing: border-box; }
+html, body { background: var(--paper); color: var(--ink); margin: 0; padding: 0; }
+body {
+  font-family: var(--font-prose);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--orange-ink); }
+
+code, pre, .mono { font-family: var(--font-mono); }
+code { font-size: 0.9em; }
+
+.wrap         { max-width: 1040px; margin: 0 auto; padding: 0 36px; }
+.wrap-narrow  { max-width: 760px;  margin: 0 auto; padding: 0 36px; }
+
+/* Masthead */
+.masthead { padding: 22px 0 20px; border-bottom: 1px solid var(--paper-rule); }
+.mast-row { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.brand {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  display: flex; align-items: center; gap: 10px;
+}
+.brand .mk {
+  width: 14px; height: 14px;
+  display: inline-block;
+  background: var(--orange);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.brand .ver {
+  font-size: 11px; color: var(--ink-3); letter-spacing: 0.04em;
+  margin-left: 6px;
+}
+.nav { display: flex; gap: 24px; font-size: 13.5px; font-family: var(--font-mono); }
+.nav a { color: var(--ink-3); text-decoration: none; }
+.nav a:hover { color: var(--ink); }
+
+.statusbar {
+  padding: 9px 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--paper-rule);
+}
+.statusbar .row { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.statusbar .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--orange); vertical-align: 1px; margin-right: 8px; }
+.statusbar .sep { color: var(--ink-4); margin: 0 10px; }
+
+/* Hero */
+.hero { padding: 80px 0 48px; }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 22px;
+  display: flex; align-items: center; gap: 10px;
+}
+.eyebrow .bar { display: inline-block; width: 28px; height: 1px; background: var(--orange); }
+.tagline {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(38px, 5.6vw, 68px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  margin: 0 0 24px;
+  max-width: 20ch;
+  text-wrap: balance;
+}
+.tagline .soft { color: var(--ink-3); }
+.tagline .orange { color: var(--orange); }
+.lede {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 64ch;
+  margin: 0 0 20px;
+  text-wrap: pretty;
+}
+.lede-two {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-3);
+  max-width: 64ch;
+  margin: 0 0 36px;
+}
+.lede-two b { color: var(--ink); font-weight: 500; }
+
+/* ============ DIAGRAM ============ */
+.diagram {
+  border: 1px solid var(--paper-rule);
+  background: var(--paper-2);
+  padding: 30px 28px 22px;
+  margin-top: 18px;
+  position: relative;
+}
+.diagram-label {
+  position: absolute;
+  top: -10px; left: 20px;
+  background: var(--paper);
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.diagram-legend {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+  margin-top: 6px;
+}
+.diagram-legend i {
+  display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px;
+  border: 1px solid var(--ink-3);
+}
+.diagram-legend .li-orange i { background: var(--orange); border-color: var(--orange); }
+.diagram-legend .li-blue   i { background: var(--blue);   border-color: var(--blue); }
+.diagram-legend .li-ring   i { background: var(--paper); border-color: var(--ink-3); }
+
+.dgm svg { width: 100%; height: auto; display: block; }
+.dgm .node rect { fill: var(--paper); stroke: var(--ink-3); stroke-width: 1; transition: all 500ms cubic-bezier(.2,.7,.2,1); }
+.dgm .node text { font-family: var(--font-mono); font-size: 11px; fill: var(--ink-2); transition: fill 500ms; }
+.dgm .node.on rect { stroke: var(--ink); stroke-width: 1.5; }
+.dgm .node.write rect { fill: var(--orange); stroke: var(--orange); }
+.dgm .node.write text { fill: var(--paper); }
+.dgm .node.push rect  { fill: var(--blue); stroke: var(--blue); }
+.dgm .node.push text  { fill: var(--paper); }
+.dgm .edge { fill: none; stroke: var(--ink-4); stroke-width: 1; opacity: 0.6; transition: opacity 400ms, stroke 400ms; }
+.dgm .edge.read.on { stroke: var(--orange-ink); opacity: 1; stroke-width: 1.5; }
+.dgm .edge.push.on { stroke: var(--blue);       opacity: 1; stroke-width: 1.5; stroke-dasharray: 4 4; animation: flow 900ms linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -24; } }
+.dgm .stage-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--ink-3); }
+.dgm .caption { font-family: var(--font-mono); font-size: 11px; fill: var(--ink-3); }
+
+/* ============ CODE PAIR ============ */
+.codepair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 36px; }
+@media (max-width: 820px) { .codepair { grid-template-columns: 1fr; } }
+
+.codecard {
+  border: 1px solid var(--paper-rule);
+  background: #fbf6ec;
+  display: flex; flex-direction: column;
+}
+.codehead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--paper-rule);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.codehead .filename { color: var(--ink-2); }
+.codehead .pill {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 8px; border: 1px solid var(--paper-rule); border-radius: 999px; color: var(--ink-3);
+}
+pre.code {
+  margin: 0; padding: 18px 18px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  overflow-x: auto;
+  color: var(--ink);
+  background: transparent;
+}
+pre.code .kw   { color: var(--ink); font-weight: 600; }
+pre.code .str  { color: var(--orange-ink); }
+pre.code .cmt  { color: var(--ink-4); font-style: italic; }
+pre.code .sym  { color: var(--blue); }
+pre.code .tag  { color: var(--ink-2); font-weight: 500; }
+pre.code .erb  { background: var(--hl); padding: 1px 3px; border-radius: 2px; }
+
+/* ============ SECTION ============ */
+section.s { padding: 72px 0; border-top: 1px solid var(--paper-rule); }
+.s-head {
+  display: grid; grid-template-columns: 80px 1fr auto; gap: 18px;
+  margin-bottom: 40px; align-items: baseline;
+}
+.s-num {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--orange-ink);
+  letter-spacing: 0.06em;
+}
+.s-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+.s-sub {
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+}
+.s-body { display: grid; grid-template-columns: 80px 1fr; gap: 18px; }
+.s-body > .pad { }
+
+/* three bullets */
+.bullets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+@media (max-width: 820px) { .bullets { grid-template-columns: 1fr; gap: 20px; } }
+.bullet { border-top: 1px solid var(--ink); padding-top: 14px; }
+.bullet h4 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+.bullet p { margin: 0; color: var(--ink-2); font-size: 14.5px; line-height: 1.6; }
+.bullet .tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--orange-ink);
+  margin-bottom: 10px;
+}
+
+/* architecture — 5 moving parts */
+.arch {
+  display: grid; grid-template-columns: 1fr; gap: 0;
+  border-top: 1px solid var(--paper-rule);
+}
+.arch-row {
+  display: grid; grid-template-columns: 110px 1fr 1fr; gap: 28px;
+  padding: 28px 0;
+  border-bottom: 1px solid var(--paper-rule);
+  align-items: start;
+}
+@media (max-width: 820px) { .arch-row { grid-template-columns: 1fr; gap: 14px; } }
+.arch-index {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+}
+.arch-index .num {
+  color: var(--orange-ink);
+  font-size: 36px;
+  font-weight: 400;
+  font-family: var(--font-display);
+  display: block;
+  margin-bottom: 2px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.arch-title h4 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+.arch-title .sub {
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--blue); letter-spacing: 0.04em;
+}
+.arch-body p { margin: 0 0 10px; color: var(--ink-2); font-size: 14.5px; line-height: 1.6; }
+.arch-body p:last-child { margin-bottom: 0; }
+.arch-body code { background: var(--hl); padding: 1px 5px; border-radius: 2px; font-size: 12.5px; }
+.arch-body .callout {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--orange);
+  background: var(--orange-bg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+.arch-body .callout.blue { border-left-color: var(--blue); background: var(--blue-bg); }
+
+/* ============ DEMO ============ */
+.demo-shell { border: 1px solid var(--paper-rule); background: var(--paper-2); padding: 20px; }
+.demo-panes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 820px) { .demo-panes { grid-template-columns: 1fr; } }
+.browser {
+  background: #fbf6ec; border: 1px solid var(--paper-rule);
+  display: flex; flex-direction: column;
+  min-height: 420px;
+}
+.browser-chrome {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--paper-rule);
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+}
+.dots { display: flex; gap: 5px; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--paper-rule); display: block; }
+.addr {
+  flex: 1; background: var(--paper); border: 1px solid var(--paper-rule);
+  padding: 3px 10px; border-radius: 999px; color: var(--ink-3);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.session-tag {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink);
+  padding: 2px 8px; background: var(--paper);
+  border: 1px solid var(--ink-3);
+}
+.session-tag.a { border-color: var(--orange); color: var(--orange-ink); }
+.session-tag.b { border-color: var(--blue); color: var(--blue); }
+
+.browser-body { padding: 16px 16px 18px; flex: 1; display: flex; flex-direction: column; }
+
+.board { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; flex: 1; }
+.lane {
+  border: 1px solid var(--paper-rule);
+  background: var(--paper);
+  min-height: 220px;
+  display: flex; flex-direction: column;
+}
+.lane h6 {
+  margin: 0;
+  padding: 8px 10px;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px dashed var(--paper-rule);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.lane .count { color: var(--ink-4); font-weight: 400; }
+.lane-body { padding: 8px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+
+.card {
+  background: #fbf6ec;
+  border: 1px solid var(--paper-rule);
+  padding: 9px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: border-color 260ms ease, box-shadow 260ms ease;
+  font-weight: 400;
+}
+.card:hover { border-color: var(--ink-3); }
+.card .t { color: var(--ink); font-weight: 400; }
+.card .meta {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-mono); font-size: 10px; color: var(--ink-4);
+  margin-top: 5px;
+  letter-spacing: 0.04em;
+}
+
+/* softer highlight — a left-edge accent rather than a black block */
+.card.flash {
+  animation: cardflash 1200ms ease;
+}
+@keyframes cardflash {
+  0%   { box-shadow: inset 3px 0 0 var(--orange); border-color: var(--orange); }
+  60%  { box-shadow: inset 3px 0 0 var(--orange); border-color: var(--orange); }
+  100% { box-shadow: inset 0 0 0 var(--orange); border-color: var(--paper-rule); }
+}
+.card.flash.blue {
+  animation: cardflash-b 1200ms ease;
+}
+@keyframes cardflash-b {
+  0%   { box-shadow: inset 3px 0 0 var(--blue); border-color: var(--blue); }
+  60%  { box-shadow: inset 3px 0 0 var(--blue); border-color: var(--blue); }
+  100% { box-shadow: inset 0 0 0 var(--blue); border-color: var(--paper-rule); }
+}
+
+.demo-ctrl {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px dashed var(--paper-rule);
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--ink-3);
+  align-items: center;
+}
+.btn {
+  font-family: var(--font-mono); font-size: 12px;
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--ink); padding: 5px 11px;
+  cursor: pointer;
+}
+.btn:hover { background: var(--ink); color: var(--paper); }
+.btn.primary { background: var(--orange); color: var(--paper); border-color: var(--orange); }
+.btn.primary:hover { background: var(--orange-ink); border-color: var(--orange-ink); }
+.btn.ghost { border-color: var(--paper-rule); color: var(--ink-2); background: transparent; }
+.btn.ghost:hover { background: var(--hl); color: var(--ink); border-color: var(--ink-3); }
+
+.demo-log {
+  margin-top: 14px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--ink-3);
+  background: var(--paper);
+  border: 1px solid var(--paper-rule);
+  padding: 8px 12px;
+  max-height: 96px;
+  overflow: auto;
+  line-height: 1.6;
+}
+.demo-log .row { padding: 1px 0; display: flex; gap: 8px; }
+.demo-log .row .t { color: var(--ink-4); min-width: 64px; }
+.demo-log .row .a { min-width: 130px; }
+.demo-log .row .a.write { color: var(--orange-ink); }
+.demo-log .row .a.push  { color: var(--blue); }
+.demo-log .row .a.meta  { color: var(--ink-3); }
+.demo-log .row .p { color: var(--ink); }
+
+.kv {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  margin-top: 12px;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3);
+  padding-top: 10px;
+  border-top: 1px dashed var(--paper-rule);
+}
+.kv span b { color: var(--ink); font-weight: 500; }
+
+/* ============ COMPARE TABLE ============ */
+table.compare { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.compare th, table.compare td {
+  padding: 14px 16px; vertical-align: top;
+  border-bottom: 1px solid var(--paper-rule);
+  text-wrap: pretty;
+}
+table.compare th {
+  text-align: left;
+  font-family: var(--font-mono); font-weight: 500; font-size: 11.5px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+  border-bottom: 1px solid var(--ink);
+}
+table.compare td.row-h {
+  font-family: var(--font-mono); color: var(--ink-2); font-size: 12.5px;
+  width: 36%; line-height: 1.5;
+}
+table.compare td { color: var(--ink-2); line-height: 1.55; }
+table.compare td strong { color: var(--ink); font-weight: 500; }
+
+/* ============ LESSONS (didactic cards with animated diagrams) ============ */
+.lessons-grid { display: grid; grid-template-columns: 1fr; gap: 0; border-top: 1px solid var(--ink); }
+.lesson-card {
+  display: grid; grid-template-columns: 200px 1fr 1fr; gap: 32px;
+  padding: 28px 0; border-bottom: 1px solid var(--paper-rule); align-items: start;
+}
+@media (max-width: 900px) { .lesson-card { grid-template-columns: 1fr; gap: 18px; } }
+.lesson-idx { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; }
+.lesson-idx .big { display: block; font-family: var(--font-display); font-size: 40px; letter-spacing: -0.03em; color: var(--ink); margin-top: 6px; font-weight: 500; line-height: 1; }
+.lesson-idx .kind { display: block; margin-top: 10px; max-width: 180px; color: var(--ink-2); font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.04em; text-transform: none; line-height: 1.5; }
+.lesson-body h4 { margin: 0 0 8px; font-family: var(--font-display); font-weight: 500; font-size: 19px; letter-spacing: -0.01em; color: var(--ink); }
+.lesson-body p { margin: 0 0 10px; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
+.lesson-body p:last-child { margin-bottom: 0; }
+.lesson-body .lab { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
+.lesson-body .lab.now { color: var(--orange-ink); }
+.lesson-body .then-block { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px dashed var(--paper-rule); }
+.lesson-diagram { border: 1px solid var(--paper-rule); background: var(--paper-2); height: 220px; position: relative; overflow: hidden; }
+.lesson-diagram svg { width: 100%; height: 100%; display: block; }
+.lesson-diagram .cap { position: absolute; left: 10px; bottom: 8px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.04em; color: var(--ink-3); z-index: 2; }
+.lesson-diagram .cap .now { color: var(--orange-ink); }
+.lesson-diagram:has(.lp) .cap { display: none; }
+
+/* Two-pane HTML illustration shared by several lessons */
+.lp { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; }
+.lp-pane { position: relative; padding: 12px 14px 34px; overflow: hidden; }
+.lp-pane + .lp-pane { border-left: 1px dashed var(--paper-rule); }
+.lp-lab { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; }
+.lp-lab.now { color: var(--orange-ink); }
+
+/* State-growth metaphor: a buffer that fills with labeled chips */
+.buf { position: relative; height: 118px; border: 1px solid var(--paper-rule); background: var(--paper); overflow: hidden; }
+.buf-then { /* then: chips accumulate, eventually overflow visually */ }
+.buf-now  { /* now: fixed slots, chips cycle through */ }
+.buf-stack { display: flex; flex-wrap: wrap; gap: 3px; padding: 6px; align-content: flex-start; height: 100%; }
+.chip {
+  font-family: var(--font-mono); font-size: 10px; line-height: 1;
+  padding: 3px 6px;
+  background: var(--paper-2);
+  border: 1px solid var(--paper-rule);
+  color: var(--ink-2);
+  white-space: nowrap;
+  animation: chipIn 240ms ease-out both;
+}
+.chip.hot { background: var(--orange-bg); border-color: var(--orange); color: var(--orange-ink); }
+.chip.out { animation: chipOut 240ms ease-in both; }
+@keyframes chipIn  { from { opacity: 0; transform: translateY(-4px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes chipOut { from { opacity: 1; } to { opacity: 0; transform: scale(0.9); } }
+.buf-meter {
+  position: absolute; left: 8px; right: 8px; bottom: 6px;
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-3);
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 6px; white-space: nowrap;
+}
+.buf-meter span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  display: flex; justify-content: space-between;
+}
+.buf-meter b { font-weight: 500; color: var(--ink-2); }
+.buf-meter.warn b { color: var(--ink); }
+.buf-meter.now b  { color: var(--orange-ink); }
+.buf-overflow {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 0 var(--ink-3);
+  transition: box-shadow 240ms ease;
+}
+.buf-overflow.on { box-shadow: inset 0 -3px 0 0 var(--ink); }
+
+/* Memory-bar metaphor for state-growth */
+.rambar {
+  position: relative; height: 118px; width: 56px; margin: 6px 0 0;
+  border: 1px solid var(--paper-rule); background: var(--paper);
+  overflow: hidden;
+}
+.rambar-fill {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 0;
+  background: var(--ink-3); opacity: 0.75;
+  transition: height 120ms linear;
+}
+.rambar-fill-now { background: var(--orange); opacity: 0.85; }
+.rambar.oom .rambar-fill { background: var(--ink); opacity: 1; }
+.rambar-oom {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em;
+  color: var(--paper); background: transparent;
+  opacity: 0; transition: opacity 120ms ease;
+}
+.rambar.oom .rambar-oom { opacity: 1; }
+.rambar-band {
+  position: absolute; left: 0; right: 0;
+  top: calc(100% - 81%); height: 37%;
+  background: var(--orange-bg); opacity: 0.5;
+  border-top: 1px dashed var(--orange); border-bottom: 1px dashed var(--orange);
+}
+.rambar-ticks {
+  position: absolute; top: 0; bottom: 0; left: 62px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-3);
+}
+.rambar-ticks span:last-child { color: var(--ink-2); }
+
+/* Fanout-check: scrolling log vs indexed lookup */
+.log { position: relative; height: 120px; border: 1px solid var(--paper-rule); background: var(--paper); overflow: hidden; font-family: var(--font-mono); font-size: 10px; line-height: 1.5; }
+.log-inner { position: absolute; left: 0; right: 0; padding: 4px 8px; will-change: transform; }
+.log-row { display: flex; gap: 8px; color: var(--ink-3); white-space: nowrap; }
+.log-row .k { color: var(--ink-2); }
+.log-row .v.ok { color: var(--orange-ink); }
+.log-row .v.no { color: var(--ink-3); }
+.log:after { content:''; position: absolute; inset: 0 0 auto 0; height: 14px; background: linear-gradient(var(--paper), transparent); pointer-events: none; }
+.log:before { content:''; position: absolute; inset: auto 0 0 0; height: 14px; background: linear-gradient(transparent, var(--paper)); pointer-events: none; z-index: 1; }
+
+.idx { position: relative; height: 120px; border: 1px solid var(--paper-rule); background: var(--paper); overflow: hidden; font-family: var(--font-mono); font-size: 10px; padding: 6px 8px; }
+.idx-hd { color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; font-size: 9px; margin-bottom: 4px; }
+.idx-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding: 2px 4px; color: var(--ink-2); border-left: 2px solid transparent; transition: background 120ms ease, color 120ms ease, border-color 120ms ease; }
+.idx-row.hit { background: var(--orange-bg); color: var(--orange-ink); border-left-color: var(--orange); }
+.idx-row .n { color: var(--ink-3); }
+.idx-row.hit .n { color: var(--orange-ink); }
+
+/* Cost-visibility: noise box vs streaming profiler trace */
+.noisebox {
+  position: relative; height: 132px; border: 1px solid var(--ink); background: var(--ink);
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+}
+.noisebox .q { position: relative; z-index: 2; font-family: var(--font-display); font-size: 56px; line-height: 1; color: var(--paper); letter-spacing: -0.03em; }
+.noisebox .q .dim { opacity: 0.35; }
+.noisebox .sub { position: absolute; left: 10px; bottom: 8px; z-index: 2; font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.45); }
+.noisebox .noisegrid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(26, 1fr); grid-template-rows: repeat(10, 1fr); gap: 2px; padding: 6px; opacity: 0.45; }
+.noisebox .nd { background: transparent; border-radius: 1px; transition: background 160ms linear; }
+.noisebox .nd.on { background: rgba(255,255,255,0.15); }
+
+.trace { position: relative; height: 132px; border: 1px solid var(--paper-rule); background: var(--paper); padding: 8px 8px 6px; display: flex; flex-direction: column; gap: 5px; font-family: var(--font-mono); font-size: 9px; overflow: hidden; }
+.trace-row { position: relative; display: grid; grid-template-columns: 58px 1fr; gap: 6px; align-items: center; }
+.trace-row .rlbl { color: var(--ink-3); letter-spacing: 0.04em; font-size: 9px; }
+.trace-track { position: relative; height: 14px; background: var(--paper-2); border: 1px solid var(--paper-rule); overflow: hidden; }
+.trace-seg { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: flex-end; padding: 0 4px; color: rgba(255,255,255,0.95); font-size: 8.5px; white-space: nowrap; letter-spacing: 0.02em; }
+.trace-seg[data-k="inv"]  { background: var(--orange); }
+.trace-seg[data-k="ovl"]  { background: var(--ink); }
+.trace-seg[data-k="ren"]  { background: var(--blue); }
+.trace-seg[data-k="flu"]  { background: var(--orange-ink); }
+.trace-ruler { position: absolute; left: 64px; right: 8px; bottom: 2px; height: 8px; font-family: var(--font-mono); font-size: 8px; color: var(--ink-3); display: flex; justify-content: space-between; pointer-events: none; }
+
+/* Backpressure: dot-field — chaos vs coordinated wave */
+.dotfield { position: relative; height: 132px; border: 1px solid var(--paper-rule); background: var(--paper); padding: 10px 8px; display: grid; grid-template-columns: repeat(14, 1fr); grid-template-rows: repeat(8, 1fr); gap: 4px; }
+.dotfield .dot { width: 100%; aspect-ratio: 1; border-radius: 50%; background: var(--paper-2); box-shadow: inset 0 0 0 1px var(--paper-rule); transition: background 90ms linear, box-shadow 90ms linear, transform 120ms ease; }
+.dotfield.chaos .dot.hot { background: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.dotfield.wave  .dot.hot { background: var(--orange); box-shadow: inset 0 0 0 1px var(--orange); transform: scale(1.15); }
+.dotfield .lbl-tag { position: absolute; right: 10px; bottom: 8px; font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.08em; color: var(--ink-3); text-transform: uppercase; pointer-events: none; background: var(--paper); padding: 1px 4px; }
+.dotfield.wave .lbl-tag { color: var(--orange-ink); }
+
+/* Stateless: clients -> servers flow */
+.flow { position: relative; height: 132px; border: 1px solid var(--paper-rule); background: var(--paper); overflow: hidden; }
+.flow .clients, .flow .servers { position: absolute; top: 10px; bottom: 10px; display: flex; flex-direction: column; justify-content: space-between; }
+.flow .clients { left: 10px; width: 22px; }
+.flow .servers { right: 10px; width: 62px; }
+.flow .client { width: 10px; height: 10px; border-radius: 50%; background: var(--ink-3); align-self: center; }
+.flow .srvbox { position: relative; height: 28px; border: 1px solid var(--paper-rule); background: var(--paper-2); display: flex; align-items: center; justify-content: space-between; padding: 0 6px; font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-3); transition: background 140ms, border-color 140ms, color 140ms; }
+.flow .srvbox .q { font-size: 8.5px; color: var(--ink-3); letter-spacing: 0.04em; }
+.flow .srvbox.hot  { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.flow .srvbox.hot .q { color: rgba(255,255,255,0.7); }
+.flow .srvbox.warm { background: var(--orange-bg); border-color: var(--orange); color: var(--orange-ink); }
+.flow .srvbox.warm .q { color: var(--orange-ink); }
+.flow .tracks { position: absolute; left: 32px; right: 72px; top: 10px; bottom: 10px; }
+.flow .track { position: absolute; left: 0; right: 0; height: 1px; background: var(--paper-rule); }
+.flow .pkt { position: absolute; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--ink); transition: background 120ms; }
+.flow.now .pkt { background: var(--orange); }
+.flow .pulse-overload { position: absolute; right: 74px; top: 50%; transform: translateY(-50%); font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.08em; color: var(--ink); background: var(--paper); padding: 1px 4px; text-transform: uppercase; opacity: 0; transition: opacity 200ms; }
+.flow.hot-mid .pulse-overload { opacity: 1; }
+
+/* Render-scale: queue + worker lanes */
+.queuebox { position: relative; height: 132px; border: 1px solid var(--paper-rule); background: var(--paper); overflow: hidden; padding: 10px 10px 10px 10px; }
+.queuebox .qlane { position: absolute; left: 10px; right: 80px; top: 10px; bottom: 10px; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.queuebox .inbound { position: relative; height: 14px; border: 1px dashed var(--paper-rule); }
+.queuebox .item { position: absolute; top: 2px; width: 10px; height: 10px; background: var(--ink-3); border-radius: 1px; transition: background 140ms; }
+.queuebox.now .item { background: var(--orange); }
+.queuebox .qstack { position: relative; height: 60px; display: flex; flex-wrap: wrap-reverse; gap: 2px; padding: 2px; border: 1px solid var(--paper-rule); background: var(--paper-2); align-content: flex-start; overflow: hidden; }
+.queuebox .qchip { width: 8px; height: 8px; background: var(--ink-3); border-radius: 1px; transition: background 140ms; }
+.queuebox.saturated .qstack { border-color: var(--ink); }
+.queuebox.saturated .qchip { background: var(--ink); }
+.queuebox.now .qchip { background: var(--orange); }
+.queuebox .workers { position: absolute; right: 10px; top: 10px; bottom: 10px; width: 62px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; }
+.queuebox .w { flex: 1; border: 1px solid var(--paper-rule); background: var(--paper-2); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 9px; color: var(--ink-3); position: relative; overflow: hidden; }
+.queuebox .w i { position: absolute; left: 0; bottom: 0; right: 0; height: 0%; background: var(--ink-3); opacity: 0.35; transition: height 180ms ease; z-index: 0; }
+.queuebox.now .w i { background: var(--orange); opacity: 0.55; }
+.queuebox .w span { position: relative; z-index: 1; }
+.queuebox .w.hot i { background: var(--ink); opacity: 0.85; }
+
+/* Stateless: server tabs */
+.srv { display: flex; flex-direction: column; gap: 4px; padding: 8px 0 0; }
+.srv-tab { display: grid; grid-template-columns: 60px 1fr auto; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--paper-rule); background: var(--paper); font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); transition: border-color 140ms ease, background 140ms ease, color 140ms ease; }
+.srv-tab .name { color: var(--ink-2); }
+.srv-tab .st { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.srv-tab.active { border-color: var(--orange); background: var(--orange-bg); color: var(--orange-ink); }
+.srv-tab.active .name, .srv-tab.active .st { color: var(--orange-ink); }
+.srv-tab.pinned { border-color: var(--ink); background: var(--paper); color: var(--ink); }
+.srv-tab.pinned .name, .srv-tab.pinned .st { color: var(--ink); }
+.srv-tab.dim { opacity: 0.45; }
+
+/* Render-scale: htop-style CPU bars */
+.htop { padding: 8px 4px 0; font-family: var(--font-mono); font-size: 10px; display: flex; flex-direction: column; gap: 6px; }
+.htop-row { display: grid; grid-template-columns: 28px 1fr 36px; gap: 6px; align-items: center; }
+.htop-row .lbl { color: var(--ink-3); }
+.htop-row .bar { height: 12px; background: var(--paper-2); border: 1px solid var(--paper-rule); position: relative; overflow: hidden; }
+.htop-row .bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ink-3); transition: width 180ms ease, background 180ms ease; }
+.htop-row.hot .bar i { background: var(--ink); }
+.htop-row.now .bar i { background: var(--orange); }
+.htop-row .pct { color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* fanout patterns */
+.fanout-patterns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+@media (max-width: 820px) { .fanout-patterns { grid-template-columns: 1fr; } }
+.pattern { border: 1px solid var(--paper-rule); background: var(--paper-2); padding: 20px 20px 8px; display: flex; flex-direction: column; }
+.pattern-tag { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--orange-ink); margin-bottom: 8px; }
+.pattern h4 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 500; font-size: 17px; letter-spacing: -0.01em; }
+.pattern p { margin: 0; color: var(--ink-2); font-size: 13.5px; line-height: 1.55; }
+.pattern-svg { width: 100%; height: 120px; margin-top: 10px; }
+
+/* ============ INVARIANTS ============ */
+.invariants { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px 36px; }
+@media (max-width: 820px) { .invariants { grid-template-columns: 1fr; } }
+.invariant {
+  display: grid; grid-template-columns: 36px 1fr; gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--paper-rule);
+}
+.invariant .n {
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--orange-ink); padding-top: 2px;
+}
+.invariant h5 { margin: 0 0 4px; font-family: var(--font-display); font-weight: 500; font-size: 15px; letter-spacing: -0.005em; }
+.invariant p  { margin: 0; color: var(--ink-2); font-size: 13.5px; line-height: 1.55; }
+
+/* ============ PERFORMANCE ============ */
+.perf {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+}
+@media (max-width: 820px) { .perf { grid-template-columns: 1fr; } }
+.perf .box {
+  border: 1px solid var(--paper-rule);
+  background: var(--paper-2);
+  padding: 20px;
+}
+.perf .box h5 {
+  margin: 0 0 12px;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.bar-row { display: grid; grid-template-columns: 110px 1fr 60px; gap: 10px; align-items: center; margin-bottom: 10px; }
+.bar-row .label { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+.bar-row .bar { height: 10px; background: var(--paper); border: 1px solid var(--paper-rule); position: relative; }
+.bar-row .bar i { display: block; height: 100%; background: var(--orange); }
+.bar-row .bar.alt i { background: var(--ink-3); }
+.bar-row .num { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); text-align: right; }
+
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 20px; }
+.stat {
+  border-top: 1px solid var(--paper-rule);
+  padding-top: 10px;
+}
+.stat .n { font-family: var(--font-display); font-size: 28px; font-weight: 500; letter-spacing: -0.02em; line-height: 1; }
+.stat .n .unit { font-family: var(--font-mono); font-size: 13px; color: var(--ink-3); margin-left: 4px; letter-spacing: 0; }
+.stat .lbl { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); letter-spacing: 0.04em; margin-top: 6px; }
+
+.disclaimer {
+  margin-top: 18px;
+  padding: 12px 14px;
+  background: var(--paper-2);
+  border-left: 2px solid var(--blue);
+  font-size: 13.5px;
+  color: var(--ink-2);
+  font-family: var(--font-prose);
+  line-height: 1.55;
+}
+
+/* ============ API SURFACE ============ */
+.surface { background: var(--paper-2); border: 1px solid var(--paper-rule); }
+.surface-row {
+  display: grid; grid-template-columns: 240px 1fr; gap: 0;
+  border-bottom: 1px solid var(--paper-rule);
+}
+.surface-row:last-child { border-bottom: 0; }
+@media (max-width: 820px) { .surface-row { grid-template-columns: 1fr; } }
+.surface-desc {
+  padding: 18px 20px;
+  border-right: 1px solid var(--paper-rule);
+  background: var(--paper-2);
+}
+@media (max-width: 820px) { .surface-desc { border-right: 0; border-bottom: 1px dashed var(--paper-rule); } }
+.surface-desc h5 { margin: 0 0 4px; font-family: var(--font-mono); font-size: 12px; color: var(--orange-ink); letter-spacing: 0.04em; }
+.surface-desc p  { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+.surface-code {
+  background: #fbf6ec;
+  padding: 14px 18px;
+}
+.surface-code pre.code { padding: 0; font-size: 12.5px; }
+
+/* ============ PRIOR ART ============ */
+.priorart { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; }
+@media (max-width: 820px) { .priorart { grid-template-columns: 1fr; } }
+.priorart p { color: var(--ink-2); text-wrap: pretty; }
+.refs { font-family: var(--font-mono); font-size: 12.5px; }
+.refs dt { color: var(--ink-3); margin-top: 14px; letter-spacing: 0.03em; }
+.refs dd { margin: 2px 0 0; color: var(--ink); }
+.refs dd .year { color: var(--ink-4); margin-left: 6px; }
+
+/* ============ STATUS ============ */
+.status-list { padding-left: 0; list-style: none; }
+.status-list li {
+  padding: 10px 0;
+  border-top: 1px solid var(--paper-rule);
+  display: grid; grid-template-columns: 90px 1fr; gap: 16px;
+  align-items: start;
+  font-size: 14px; color: var(--ink-2); line-height: 1.55;
+}
+.status-list li:last-child { border-bottom: 1px solid var(--paper-rule); }
+.status-list .flag {
+  font-family: var(--font-mono); font-size: 10.5px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding-top: 2px;
+}
+.status-list .flag.ok    { color: var(--orange-ink); }
+.status-list .flag.gap   { color: var(--blue); }
+.status-list .flag.soon  { color: var(--ink-3); }
+.status-list li code { background: var(--hl); padding: 1px 5px; border-radius: 2px; font-size: 12px; }
+
+/* ============ FOOTER ============ */
+footer.f { padding: 60px 0 80px; border-top: 1px solid var(--ink); margin-top: 40px; }
+.f-row { display: flex; gap: 40px; flex-wrap: wrap; justify-content: space-between; }
+.f-col h6 {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3);
+  margin: 0 0 10px;
+}
+.f-col a { display: block; color: var(--ink); text-decoration: none; padding: 3px 0; font-size: 14px; }
+.f-col a:hover { text-decoration: underline; text-decoration-color: var(--orange); }
+.f-bottom {
+  margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--paper-rule);
+  display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);
+}
+
+/* ============ DIRECTION OVERRIDES ============ */
+body[data-direction="paper"] {
+  --font-prose: "Newsreader", Georgia, serif;
+  --font-display: "Newsreader", Georgia, serif;
+}
+body[data-direction="paper"] { font-size: 17px; line-height: 1.65; }
+body[data-direction="paper"] .wrap { max-width: 860px; }
+body[data-direction="paper"] .tagline em { font-style: italic; }
+
+body[data-direction="gem"] .tagline { font-size: clamp(30px, 4vw, 44px); font-weight: 600; }
+body[data-direction="gem"] .hero { padding: 56px 0 40px; }
+body[data-direction="gem"] .s-title { font-size: 22px; font-weight: 600; }
+body[data-direction="gem"] section.s { padding: 52px 0; }
+
+body[data-font="mono"] { --font-prose: "IBM Plex Mono", ui-monospace, monospace; --font-display: "IBM Plex Mono", ui-monospace, monospace; }
+body[data-font="mono"] .tagline { font-size: clamp(26px, 3.4vw, 42px); letter-spacing: -0.01em; }
+body[data-font="serif"] { --font-prose: "Newsreader", Georgia, serif; --font-display: "Newsreader", Georgia, serif; }
+
+</style>
+</head>
+<body data-direction="readme" data-font="plex" data-accents="true">
+
+<!-- Masthead -->
+<div class="masthead">
+  <div class="wrap mast-row">
+    <div class="brand">
+      <span class="mk"></span> upkeep
+    </div>
+    <nav class="nav">
+      <a href="#what">what</a>
+      <a href="#how">how</a>
+      <a href="#demo">demo</a>
+      <a href="#lessons">lessons</a>
+      <a href="#perf">performance</a>
+      <a href="#surface">api</a>
+      <a href="#install">install</a>
+    </nav>
+  </div>
+</div>
+
+<div class="statusbar">
+  <div class="wrap row">
+    <span><span class="dot"></span>open source · MIT</span>
+    <span>drop-in for Rails 7.1+ <span class="sep">·</span> Ruby 3.2+ <span class="sep">·</span> ActionCable</span>
+  </div>
+</div>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="bar"></span>live UIs for Rails · open source</div>
+    <h1 class="tagline">
+      Rails, <span class="orange">live by default.</span>
+      <span class="soft">Write normal ERB. Ship realtime apps.</span>
+    </h1>
+    <p class="lede">
+      Upkeep makes every server-rendered page reactive. Change a record; every browser viewing the views that depend on it updates in place. No broadcasts to wire up, no cache keys to maintain, no SPA to build. Rails apps move at chat-app speed with the productivity of plain ERB.
+    </p>
+    <p class="lede-two">
+      The whole surface is <b>one line per reactive model</b>. The rest of your app is the Rails you already write. Behind the scenes, Upkeep tracks what each render touched and, when data changes, pushes only the HTML that actually changed to only the clients that care. Targeted, fast, and small enough to reason about.
+    </p>
+
+    <!-- Hero diagram: read-set -> write -> push -->
+    <div class="diagram dgm">
+      <div class="diagram-label">fig. 1 · read-set · overlap · push</div>
+      <svg viewBox="0 0 980 260" aria-label="records, fragments, clients">
+        <text x="80"  y="24" class="stage-label">records</text>
+        <text x="380" y="24" class="stage-label">fragments (read-sets)</text>
+        <text x="800" y="24" class="stage-label">subscribers</text>
+
+        <!-- Records -->
+        <g id="h-recs">
+          <g class="node" data-id="r1" transform="translate(60,50)"><rect width="160" height="38" rx="1"/><text x="12" y="24">Card#42</text></g>
+          <g class="node" data-id="r2" transform="translate(60,102)"><rect width="160" height="38" rx="1"/><text x="12" y="24">Card#43</text></g>
+          <g class="node" data-id="r3" transform="translate(60,154)"><rect width="160" height="38" rx="1"/><text x="12" y="24">User#7</text></g>
+        </g>
+
+        <!-- Fragments -->
+        <g id="h-frags">
+          <g class="node" data-id="f1" transform="translate(360,40)"><rect width="300" height="50" rx="1"/><text x="12" y="20">_card.html.erb</text><text x="12" y="38" opacity=".6">reads: Card#42</text></g>
+          <g class="node" data-id="f2" transform="translate(360,100)"><rect width="300" height="50" rx="1"/><text x="12" y="20">_lane.html.erb</text><text x="12" y="38" opacity=".6">reads: Card#42, Card#43</text></g>
+          <g class="node" data-id="f3" transform="translate(360,160)"><rect width="300" height="50" rx="1"/><text x="12" y="20">_avatar.html.erb</text><text x="12" y="38" opacity=".6">reads: User#7</text></g>
+        </g>
+
+        <!-- Clients -->
+        <g id="h-clients">
+          <g class="node" data-id="c1" transform="translate(790,50)"><rect width="140" height="38" rx="1"/><text x="12" y="24">session A</text></g>
+          <g class="node" data-id="c2" transform="translate(790,102)"><rect width="140" height="38" rx="1"/><text x="12" y="24">session B</text></g>
+          <g class="node" data-id="c3" transform="translate(790,154)"><rect width="140" height="38" rx="1"/><text x="12" y="24">session C</text></g>
+        </g>
+
+        <!-- Read edges -->
+        <g>
+          <path class="edge read" data-rf="r1-f1" d="M220 69 C 280 69, 320 65, 360 65"/>
+          <path class="edge read" data-rf="r1-f2" d="M220 69 C 290 95, 320 122, 360 125"/>
+          <path class="edge read" data-rf="r2-f2" d="M220 121 C 280 121, 320 124, 360 125"/>
+          <path class="edge read" data-rf="r3-f3" d="M220 173 C 280 173, 320 183, 360 185"/>
+        </g>
+
+        <!-- Push edges -->
+        <g>
+          <path class="edge push" data-fc="f1-c1" d="M660 65 C 720 65, 760 65, 790 69"/>
+          <path class="edge push" data-fc="f2-c1" d="M660 125 C 720 105, 760 80, 790 75"/>
+          <path class="edge push" data-fc="f2-c2" d="M660 125 C 720 125, 760 124, 790 121"/>
+          <path class="edge push" data-fc="f3-c3" d="M660 185 C 720 180, 760 175, 790 173"/>
+        </g>
+
+        <text x="60"  y="230" class="caption" id="h-caption">standby · read-sets recorded during initial render</text>
+      </svg>
+      <div class="diagram-legend">
+        <span class="li-ring"><i></i>fragment</span>
+        <span class="li-orange"><i></i>write</span>
+        <span class="li-blue"><i></i>push</span>
+      </div>
+    </div>
+
+    <div class="codepair">
+      <div class="codecard">
+        <div class="codehead">
+          <span class="filename">app/views/cards/_card.html.erb</span>
+          <span class="pill">ERB</span>
+        </div>
+<pre class="code"><span class="cmt">&lt;%# a plain partial · nothing upkeep-specific %&gt;</span>
+&lt;<span class="tag">article</span> <span class="sym">class</span>=<span class="str">"card"</span> <span class="sym">id</span>=<span class="str">"&lt;%= dom_id(card) %&gt;"</span>&gt;
+  &lt;<span class="tag">h3</span>&gt;<span class="erb">&lt;%= card.title %&gt;</span>&lt;/<span class="tag">h3</span>&gt;
+  &lt;<span class="tag">p</span>&gt;<span class="erb">&lt;%= card.body %&gt;</span>&lt;/<span class="tag">p</span>&gt;
+  &lt;<span class="tag">footer</span>&gt;
+    <span class="erb">&lt;%= render card.assignee %&gt;</span>
+    &lt;<span class="tag">time</span>&gt;<span class="erb">&lt;%= time_ago_in_words(card.updated_at) %&gt;</span>&lt;/<span class="tag">time</span>&gt;
+  &lt;/<span class="tag">footer</span>&gt;
+&lt;/<span class="tag">article</span>&gt;</pre>
+      </div>
+
+      <div class="codecard">
+        <div class="codehead">
+          <span class="filename">app/controllers/cards_controller.rb</span>
+          <span class="pill">Ruby</span>
+        </div>
+<pre class="code"><span class="kw">class</span> <span class="tag">Card</span> &lt; <span class="tag">ApplicationRecord</span>
+  <span class="kw">include</span> <span class="tag">Upkeep</span>::<span class="tag">Broadcastable</span>
+<span class="kw">end</span>
+
+<span class="cmt"># That is the whole API. Any page that renders a Card</span>
+<span class="cmt"># now updates live, in every connected browser,</span>
+<span class="cmt"># whenever a Card changes. No broadcasts to wire,</span>
+<span class="cmt"># no cache keys, no Stimulus gymnastics.</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== WHAT CHANGES ===== -->
+<section class="s" id="what">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 01</div>
+      <h2 class="s-title">What changes for you</h2>
+      <div class="s-sub">three lines</div>
+    </div>
+
+    <div class="bullets">
+      <div class="bullet">
+        <div class="tag">ship faster</div>
+        <h4>Keep your stack</h4>
+        <p>The partials, controllers, and ActiveRecord queries you have today keep working. No DSL to learn, no component library to adopt, no SPA rewrite. New teammates are productive on day one.</p>
+      </div>
+      <div class="bullet">
+        <div class="tag">move less code</div>
+        <h4>Delete the plumbing</h4>
+        <p>Drop the <code>broadcasts_to</code> calls, the <code>after_update_commit</code> callbacks, the <code>touch:</code> chains, the cache-key book-keeping. Upkeep derives the dependency graph for you, so you stop maintaining it.</p>
+      </div>
+      <div class="bullet">
+        <div class="tag">users feel it</div>
+        <h4>Updates that just appear</h4>
+        <p>A change to one record updates exactly the UI that depends on it, in every connected browser, in milliseconds. Focus, cursor position, scroll, and form state all stay intact. It feels like magic.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== HOW IT WORKS · architecture ===== -->
+<section class="s" id="how">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 02</div>
+      <h2 class="s-title">How it works</h2>
+      <div class="s-sub">five pieces · small, auditable, fast</div>
+    </div>
+
+    <div class="arch">
+
+      <!-- 1. compiler -->
+      <div class="arch-row">
+        <div class="arch-index"><span class="num">01</span>the compiler</div>
+        <div class="arch-title">
+          <h4>Herb + ReActionView turn ERB into instrumented templates.</h4>
+          <div class="sub">parse · walk · rewrite · at boot</div>
+        </div>
+        <div class="arch-body">
+          <p>Rails' default ERB handler is an opaque string concatenator. It produces output; it doesn't know what is an expression, what is a tag, what is a conditional. That makes dependency tracking impossible from the outside.</p>
+          <p>Herb is an HTML-aware ERB parser written in C with Ruby, JS, and WASM bindings. It produces a real AST: <code>&lt;h1&gt;</code> becomes an <code>HTMLElementNode</code>, <code>&lt;%= @message.title %&gt;</code> an <code>ERBContentNode</code> inside it. ReActionView plugs that parser into Rails as a template handler, replacing erubi for reactive partials.</p>
+          <p>Upkeep hooks into the compilation pipeline and rewrites the tree. Every <code>&lt;%= expr %&gt;</code> becomes <code>Capture.capture(slot_index)</code>. Every <code>&lt;% if %&gt;</code> / <code>&lt;% elsif %&gt;</code> becomes <code>Capture.branch</code>. Every <code>@ivar</code> read becomes <code>Capture.ivar</code>. Reactive partials get wrapped in a <code>&lt;signal-fragment&gt;</code> boundary.</p>
+          <div class="callout">During a normal page render the Capture calls are zero-cost passthroughs. During a re-render they record a slot-by-slot decomposition of the fragment. Invisible to authors; you still see plain ERB.</div>
+        </div>
+      </div>
+
+      <!-- 2. read-set -->
+      <div class="arch-row">
+        <div class="arch-index"><span class="num">02</span>read-set tracking</div>
+        <div class="arch-title">
+          <h4>The BatchBroadcasts middleware captures what each render touched.</h4>
+          <div class="sub">predicates · type-cast · structured</div>
+        </div>
+        <div class="arch-body">
+          <p>When a request comes in, QueryTracking activates: an <code>ActiveRecord::Relation</code> prepend that intercepts every query method and captures its WHERE predicates as structured <code>Predicate</code> objects, one per condition: <code>(table, column, operator, value, type)</code>.</p>
+          <p>Values go through ActiveRecord's type system, so the String <code>"42"</code> and the Integer <code>42</code> collapse to the same predicate. The render runs, and the middleware collects every predicate into a <code>ReadSet</code>:</p>
+<pre class="code" style="background:var(--paper-2); border:1px solid var(--paper-rule); padding:12px 14px; margin-top:10px; font-size:12px;">ReadSet {
+  (messages, room_id, =,  17),
+  (users,    id,      IN, [3, 8, 12]),
+  (rooms,    id,      =,  17),
+}</pre>
+          <div class="callout blue">The page is a materialized view; the ReadSet is its defining query. That single idea replaces every broadcast target, cache key, and <code>touch:</code> chain in your app.</div>
+        </div>
+      </div>
+
+      <!-- 3. subscription + handoff -->
+      <div class="arch-row">
+        <div class="arch-index"><span class="num">03</span>subscription &amp; handoff</div>
+        <div class="arch-title">
+          <h4>Rack env is captured with the read-set and stored.</h4>
+          <div class="sub">replay-ready · per-subscriber · signed handoff</div>
+        </div>
+        <div class="arch-body">
+          <p>After the render, the middleware captures the rack env: cookies, session, Warden state, everything needed to replay the render with the same <code>current_user</code>. It stores the URL, ReadSet, fragment metadata (locals, partial paths, record reverse index), and slot states in the configured subscription store (<code>:memory</code>, <code>:broker</code>, or <code>:active_record</code>).</p>
+          <p>Before the response goes out, a <code>&lt;signal-stream-source&gt;</code> element is auto-injected with a signed token referencing the subscription. The browser parses it, opens an ActionCable connection, and subscribes to the per-subscription stream.</p>
+        </div>
+      </div>
+
+      <!-- 4. trigger -->
+      <div class="arch-row">
+        <div class="arch-index"><span class="num">04</span>the trigger</div>
+        <div class="arch-title">
+          <h4>Invalidation is explicit per model. Routing is O(log N + k).</h4>
+          <div class="sub">Kung-Robinson 1981 · Convex-style index</div>
+        </div>
+        <div class="arch-body">
+          <p>Reactivity is per-model and opt-in. A <code>Broadcastable</code> model's <code>after_commit</code> calls <code>Upkeep.invalidate(record, event:, changes:)</code>. The payload includes both current and pre-change values, because a row that no longer matches a query still needs to evict itself from read-sets that previously captured it.</p>
+          <p>The <b>InvalidationRouter</b> picks a transport. Small deployments broadcast to a table-scoped ActionCable stream and each channel runs its own overlap check. Larger ones consult a shared SubscriptionIndex: a two-tier <code>(table, column, value)</code> hash for equality and <code>IN</code>, plus an always-check set for ranges and negations. Lookup is <code>O(log N + k)</code>, the same data structure Convex uses in production.</p>
+          <p>Each receiving channel runs the overlap check: does the changed row satisfy any predicate in my read-set? If <code>room_id</code> changed from 17 to 22, two read-sets are affected: the one that matched <code>room_id = 17</code> (losing the row) and the one that matches <code>room_id = 22</code> (gaining it). The check is O(predicates), not O(rows).</p>
+          <div class="callout">If nothing overlaps, the channel does nothing. Most updates touch most subscriptions zero times. That is where the scale comes from.</div>
+        </div>
+      </div>
+
+      <!-- 5. rerender -->
+      <div class="arch-row">
+        <div class="arch-index"><span class="num">05</span>re-render, diff, morph</div>
+        <div class="arch-title">
+          <h4>In-process render. Statics cached. Dynamics streamed.</h4>
+          <div class="sub">per-fragment fast path · full-page fallback</div>
+        </div>
+        <div class="arch-body">
+          <p>On positive overlap the channel re-renders in-process, in the same Ruby process as the WebSocket. Two paths exist. Per-fragment runs only that partial through ActionView, restoring I18n locale, time zone, and <code>Current</code> attributes from the captured snapshot. Full-page runs an in-process Rack call through the captured rack env when the fragment touches state outside the partial.</p>
+          <p>The new render executes with <code>SlotContext</code> set, so the Capture calls now fire and emit a fresh <b>statics</b> / <b>dynamics</b> decomposition. The channel diffs against the stored slot state and ships only the changed dynamics:</p>
+<pre class="code" style="background:var(--paper-2); border:1px solid var(--paper-rule); padding:12px 14px; margin-top:10px; font-size:12px;"><span class="cmt"># first push: statics + dynamics</span>
+{ <span class="str">"fragments"</span>: [{ <span class="str">"id"</span>: <span class="str">"card_42_frag_91eaf6fb"</span>,
+                <span class="str">"s"</span>: [<span class="str">"&lt;h1&gt;"</span>, <span class="str">"&lt;/h1&gt;"</span>],
+                <span class="str">"d"</span>: { <span class="str">"0"</span>: <span class="str">"Updated Title"</span> } }] }
+
+<span class="cmt"># subsequent pushes: dynamics only</span>
+{ <span class="str">"fragments"</span>: [{ <span class="str">"id"</span>: <span class="str">"card_42_frag_91eaf6fb"</span>,
+                <span class="str">"d"</span>: { <span class="str">"0"</span>: <span class="str">"New Title"</span> } }] }</pre>
+          <p>The client merges changed dynamics with cached statics, reconstructs full HTML, and uses Idiomorph to morph the existing fragment in place. Focus, cursor, scroll, form state, and Stimulus instances survive the update. The UI never flickers.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===== LIVE DEMO ===== -->
+<section class="s" id="demo" data-demo>
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 03</div>
+      <h2 class="s-title">See it in a working board</h2>
+      <div class="s-sub">two browsers · one database</div>
+    </div>
+    <p style="color:var(--ink-2); max-width: 66ch; margin: -20px 0 28px; line-height: 1.55;">
+      Two independent sessions of the same kanban. Click any card in either pane, or use the controls, and watch updates ripple through in real time. Only the fragments that depend on the changed record re-render; everything else is untouched. This is the entire kanban app, built with plain ERB and one <code>include</code>.
+    </p>
+
+    <div class="demo-shell">
+      <div class="demo-panes">
+        <div class="browser" data-pane="A">
+          <div class="browser-chrome">
+            <div class="dots"><i></i><i></i><i></i></div>
+            <div class="addr">app.example.com/board/1</div>
+            <div class="session-tag a">session A</div>
+          </div>
+          <div class="browser-body"><div class="board"></div></div>
+        </div>
+        <div class="browser" data-pane="B">
+          <div class="browser-chrome">
+            <div class="dots"><i></i><i></i><i></i></div>
+            <div class="addr">app.example.com/board/1</div>
+            <div class="session-tag b">session B</div>
+          </div>
+          <div class="browser-body"><div class="board"></div></div>
+        </div>
+      </div>
+
+      <div class="demo-ctrl">
+        <button class="btn primary" data-act="move-random">write · move random card</button>
+        <button class="btn ghost" data-act="add">insert card (session A)</button>
+        <button class="btn ghost" data-act="rename">update title</button>
+        <button class="btn ghost" data-act="reset">reset</button>
+        <span style="margin-left:auto; color: var(--ink-4);">click a card to cycle its lane</span>
+      </div>
+
+      <div class="demo-log" id="demoLog"></div>
+
+      <div class="kv">
+        <span>subscribers: <b id="kv-subs">2</b></span>
+        <span>writes: <b id="kv-writes">0</b></span>
+        <span>overlap checks: <b id="kv-checks">0</b></span>
+        <span>pushes sent: <b id="kv-pushes">0</b></span>
+        <span>no-op checks: <b id="kv-noops">0</b></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== LESSONS FROM HISTORY ===== -->
+<section class="s" id="lessons">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 04</div>
+      <h2 class="s-title">Six things server-side reactivity got wrong</h2>
+      <div class="s-sub">and how we fixed each one</div>
+    </div>
+
+    <p style="color:var(--ink-2); max-width: 72ch; margin: -20px 0 28px; line-height: 1.6;">
+      Live HTML from the server is an old idea. Previous attempts hit the same six walls. Each is a real engineering problem with a real solution. Here they are, with the fix shown next to each one.
+    </p>
+
+    <div class="lessons-grid">
+      <div class="lesson-card">
+        <div class="lesson-idx"><span>Lesson</span><span class="big">01</span><span class="kind">Per-client state that never stops growing</span></div>
+        <div class="lesson-body">
+          <div class="then-block"><span class="lab">Then</span><p>Earlier systems kept a copy of every row each client had seen, so the server could diff new data against it. As clients queried more data, the per-client buffer grew without bound. Long-lived sessions eventually OOM'd the server.</p></div>
+          <div><span class="lab now">Now, in Upkeep</span><p>Per-channel state is bounded structurally. We hold read-set predicates and a small delivery cap, not a shadow copy of the database. The upcoming result-hash refactor reduces this to a 32-byte hash per fragment per subscriber.</p></div>
+        </div>
+        <div class="lesson-diagram" data-diagram="state-growth"><div class="cap"><span>then: buffer grows</span>&nbsp;·&nbsp;<span class="now">now: bounded</span></div></div>
+      </div>
+
+      <div class="lesson-card">
+        <div class="lesson-idx"><span>Lesson</span><span class="big">02</span><span class="kind">Every write checked against every subscription</span></div>
+        <div class="lesson-body">
+          <div class="then-block"><span class="lab">Then</span><p>When a row changed, the server asked every open subscription, “do you care about this?” With a thousand subscribers, one write became a thousand predicate checks. Throughput fell off a cliff long before CPU did.</p></div>
+          <div><span class="lab now">Now, in Upkeep</span><p>A centralized router indexes subscriptions by <code>(table, column, value)</code>. On a write, it looks up exactly the subscriptions that care, in <code>O(log N + k)</code>. Ranges and negations fall into a small always-check set.</p></div>
+        </div>
+        <div class="lesson-diagram" data-diagram="fanout-check"><div class="cap"><span>then: every sub checked</span>&nbsp;·&nbsp;<span class="now">now: indexed lookup</span></div></div>
+      </div>
+
+      <div class="lesson-card">
+        <div class="lesson-idx"><span>Lesson</span><span class="big">03</span><span class="kind">Everything reactive, nothing measurable</span></div>
+        <div class="lesson-body">
+          <div class="then-block"><span class="lab">Then</span><p>Reactivity was on for every model and every query by default. When the server fell over, there was no way to see which view, which query, or which model was responsible. You could not profile what you could not name.</p></div>
+          <div><span class="lab now">Now, in Upkeep</span><p>Reactivity is opt-in per model. Every step emits an <code>ActiveSupport::Notifications</code> event: <code>upkeep.invalidation</code>, <code>upkeep.overlap_check</code>, <code>upkeep.batch_flush</code>. You profile a live view the way you profile SQL.</p></div>
+        </div>
+        <div class="lesson-diagram" data-diagram="cost-visibility"><div class="cap"><span>then: opaque</span>&nbsp;·&nbsp;<span class="now">now: instrumented</span></div></div>
+      </div>
+
+      <div class="lesson-card">
+        <div class="lesson-idx"><span>Lesson</span><span class="big">04</span><span class="kind">No backpressure on bursts</span></div>
+        <div class="lesson-body">
+          <div class="then-block"><span class="lab">Then</span><p>A bulk import emitted a write per row. Each write produced one push per affected subscriber. A reasonable import became millions of frames on the wire, and the first server to notice was the one that crashed.</p></div>
+          <div><span class="lab now">Now, in Upkeep</span><p>Bursts are coalesced at every boundary. Per-channel queues merge duplicates, in-flight delivery is capped, a splay spreads fan-out, and <code>Upkeep.batch</code> collapses a thousand updates into one push per affected record on purpose.</p></div>
+        </div>
+        <div class="lesson-diagram" data-diagram="backpressure"><div class="cap"><span>then: firehose</span>&nbsp;·&nbsp;<span class="now">now: coalesced</span></div></div>
+      </div>
+
+      <div class="lesson-card">
+        <div class="lesson-idx"><span>Lesson</span><span class="big">05</span><span class="kind">Stateful connections, sticky sessions</span></div>
+        <div class="lesson-body">
+          <div class="then-block"><span class="lab">Then</span><p>Each WebSocket held session state the server could not reproduce. Load balancers needed sticky sessions, deploys dropped live state, and horizontal scaling meant copying that state between nodes over the network.</p></div>
+          <div><span class="lab now">Now, in Upkeep</span><p>The render path is a pure function of <code>(url, fragment_id, locals, snapshot)</code>. The substrate for a stateless sidecar is already in place. Connections become cheap and portable.</p></div>
+        </div>
+        <div class="lesson-diagram" data-diagram="stateless"><div class="cap"><span>then: sticky to one box</span>&nbsp;·&nbsp;<span class="now">now: any worker</span></div></div>
+      </div>
+
+      <div class="lesson-card">
+        <div class="lesson-idx"><span>Lesson</span><span class="big">06</span><span class="kind">Server-side rendering as the performance floor</span></div>
+        <div class="lesson-body">
+          <div class="then-block"><span class="lab">Then</span><p>Every update re-ran a whole template on the server. Render cost compounded with fan-out. Teams migrated to clients-render-everything architectures to escape it.</p></div>
+          <div><span class="lab now">Now, in Upkeep</span><p>Fragments render in roughly 0.3 ms in-process; full pages in 2.5 ms. The pipeline is stateless, so render workers scale horizontally. Statics are cached once; only the dynamics travel on each update.</p></div>
+        </div>
+        <div class="lesson-diagram" data-diagram="render-scale"><div class="cap"><span>then: one renderer</span>&nbsp;·&nbsp;<span class="now">now: horizontal</span></div></div>
+      </div>
+    </div>
+
+    <!-- Invariants -->
+    <h3 style="font-family: var(--font-display); font-weight: 500; font-size: 19px; letter-spacing: -0.01em; margin: 44px 0 0;">The principles we hold</h3>
+    <p style="font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); letter-spacing: 0.04em; margin: 4px 0 16px;">six invariants that hold at every scale</p>
+
+    <div class="invariants">
+      <div class="invariant"><div class="n">I</div><div><h5>ReadSet is the source of truth</h5><p>All invalidation decisions flow from predicate overlap, never from stream membership.</p></div></div>
+      <div class="invariant"><div class="n">II</div><div><h5>Rendering is a pure function</h5><p><code>(url, fragment_id, locals, snapshot) → (statics, dynamics, read_set)</code>. No side effects, no connection state.</p></div></div>
+      <div class="invariant"><div class="n">III</div><div><h5>Delivery is targeted</h5><p>The system knows which subscriptions are affected before sending. Broadcast-then-filter is the anti-pattern.</p></div></div>
+      <div class="invariant"><div class="n">IV</div><div><h5>Backpressure at every boundary</h5><p>Per-channel queue, in-flight cap, drain limits, splaying, batch coalescing. Never unbounded.</p></div></div>
+      <div class="invariant"><div class="n">V</div><div><h5>Cost is visible</h5><p>Every invalidation, render, and delivery is instrumented via ActiveSupport::Notifications.</p></div></div>
+      <div class="invariant"><div class="n">VI</div><div><h5>Reactivity is explicit</h5><p>Models opt in. Columns can be filtered. Bulk operations can skip tracking.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== NEIGHBORS / COMPARISON ===== -->
+<section class="s" id="neighbors">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 05</div>
+      <h2 class="s-title">Where it fits</h2>
+      <div class="s-sub">next to LiveView, Turbo, and the data-side IVM stack</div>
+    </div>
+
+    <table class="compare">
+      <thead>
+        <tr>
+          <th style="width:22%"></th>
+          <th>Phoenix LiveView</th>
+          <th>Hotwire / Turbo Streams</th>
+          <th>Convex · ElectricSQL · Materialize</th>
+          <th><strong>upkeep</strong></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="row-h">dependency graph lives</td>
+          <td>in the LiveView module's assigns</td>
+          <td>in your head and in <code>broadcasts_to</code></td>
+          <td>in the database's query plan</td>
+          <td><strong>in the ReadSet</strong>, derived from the queries the render actually ran</td>
+        </tr>
+        <tr>
+          <td class="row-h">authoring surface</td>
+          <td>LiveView module plus HEEx</td>
+          <td>ERB + explicit stream targets</td>
+          <td>query language + subscriptions</td>
+          <td><strong>normal ERB and normal ActiveRecord</strong></td>
+        </tr>
+        <tr>
+          <td class="row-h">transport shape</td>
+          <td>statics + dynamics over socket</td>
+          <td>Turbo Stream HTML fragments</td>
+          <td>SQL deltas or patches</td>
+          <td><strong>statics cached, dynamics streamed</strong>; Idiomorph on the client</td>
+        </tr>
+        <tr>
+          <td class="row-h">view granularity</td>
+          <td>whole LiveView</td>
+          <td>whatever you target</td>
+          <td>per-row</td>
+          <td><strong>per-fragment</strong>, per-subscriber</td>
+        </tr>
+        <tr>
+          <td class="row-h">the hard part</td>
+          <td>state in a process</td>
+          <td>keeping broadcasts in sync with views</td>
+          <td>integrating with app code</td>
+          <td><strong>render throughput</strong>; tier 2 sidecar is the path</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== PERFORMANCE ===== -->
+<section class="s" id="perf">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 06</div>
+      <h2 class="s-title">Built for fanout</h2>
+      <div class="s-sub">one write, many viewers · the shape that breaks other systems</div>
+    </div>
+
+    <p style="color:var(--ink-2); max-width: 72ch; margin: -20px 0 28px; line-height: 1.6;">
+      The hard part of live HTML is not rendering. It is routing. When one write has to reach <em>N</em> viewers, the system's scaling behavior is whatever it costs to decide who gets the update. We benchmark the two fanout shapes that cover most real apps.
+    </p>
+
+    <div class="fanout-patterns">
+      <div class="pattern">
+        <span class="pattern-tag">Pattern A</span>
+        <h4>Broadcast fanout</h4>
+        <p>One write visible to a shared audience. Every viewer on a channel sees the same update. Typical of activity feeds, live scoreboards, shared timelines, and anything with a room model.</p>
+        <svg class="pattern-svg" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+          <circle cx="30" cy="60" r="10" fill="var(--orange)"/>
+          <text x="30" y="92" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--ink-3)">1 write</text>
+          <g stroke="var(--ink-3)" stroke-width="1" fill="none" opacity="0.55">
+            <path d="M 40 60 L 150 22"/><path d="M 40 60 L 150 40"/><path d="M 40 60 L 150 58"/><path d="M 40 60 L 150 76"/><path d="M 40 60 L 150 94"/>
+          </g>
+          <g fill="var(--blue)"><circle cx="160" cy="22" r="5"/><circle cx="160" cy="40" r="5"/><circle cx="160" cy="58" r="5"/><circle cx="160" cy="76" r="5"/><circle cx="160" cy="94" r="5"/></g>
+          <text x="220" y="64" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--ink-3)">N viewers</text>
+        </svg>
+      </div>
+      <div class="pattern">
+        <span class="pattern-tag">Pattern B</span>
+        <h4>Graph fanout</h4>
+        <p>Many writers, many viewers, each viewer seeing a different slice. Cards move, users drag, filters cross. Typical of kanbans, shared documents, CRMs, and dashboards where each pane shows a different query.</p>
+        <svg class="pattern-svg" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+          <g fill="var(--orange)"><circle cx="30" cy="30" r="7"/><circle cx="30" cy="60" r="7"/><circle cx="30" cy="90" r="7"/></g>
+          <text x="30" y="108" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--ink-3)">writers</text>
+          <g stroke="var(--ink-3)" stroke-width="1" fill="none" opacity="0.45">
+            <path d="M 38 30 L 150 22"/><path d="M 38 30 L 150 58"/><path d="M 38 60 L 150 40"/><path d="M 38 60 L 150 76"/><path d="M 38 90 L 150 58"/><path d="M 38 90 L 150 94"/>
+          </g>
+          <g fill="var(--blue)"><circle cx="160" cy="22" r="5"/><circle cx="160" cy="40" r="5"/><circle cx="160" cy="58" r="5"/><circle cx="160" cy="76" r="5"/><circle cx="160" cy="94" r="5"/></g>
+          <text x="220" y="64" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--ink-3)">different slices</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="perf">
+      <div class="box">
+        <h5>Throughput vs Turbo (p50, relative)</h5>
+        <div class="bar-row"><span class="label">broadcast · upkeep</span><span class="bar"><i style="width:100%"></i></span><span class="num">20×</span></div>
+        <div class="bar-row"><span class="label">broadcast · turbo</span><span class="bar alt"><i style="width:5%"></i></span><span class="num">1×</span></div>
+        <div class="bar-row"><span class="label">graph · upkeep</span><span class="bar"><i style="width:45%"></i></span><span class="num">9×</span></div>
+        <div class="bar-row"><span class="label">graph · turbo</span><span class="bar alt"><i style="width:5%"></i></span><span class="num">1×</span></div>
+      </div>
+      <div class="box">
+        <h5>Latency and footprint</h5>
+        <div class="stats">
+          <div class="stat"><div class="n">0.3<span class="unit">ms</span></div><div class="lbl">per-fragment render, in-process</div></div>
+          <div class="stat"><div class="n">2.5<span class="unit">ms</span></div><div class="lbl">full-page render, in-process</div></div>
+          <div class="stat"><div class="n">3–5<span class="unit">ms</span></div><div class="lbl">p99 invalidation latency, microbenchmark</div></div>
+          <div class="stat"><div class="n">309<span class="unit">MB</span></div><div class="lbl">peak RSS (upkeep) vs 118 MB (turbo)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      20× on broadcast fanout, 9× on graph fanout, at p50. Invalidation latency lands inside a single Rails request cycle. The pipeline is already stateless, so a dedicated render sidecar is a deployment change rather than a rewrite — the next order of magnitude comes from there.
+    </div>
+  </div>
+</section>
+
+<!-- ===== PUBLIC SURFACE ===== -->
+<section class="s" id="surface">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 07</div>
+      <h2 class="s-title">The whole API, on one page</h2>
+      <div class="s-sub">five methods · everything else is plain Rails</div>
+    </div>
+
+    <div class="surface">
+      <div class="surface-row">
+        <div class="surface-desc">
+          <h5>make a model live</h5>
+          <p>One line. Every view that touches this model updates in real time across every connected browser.</p>
+        </div>
+        <div class="surface-code">
+<pre class="code"><span class="kw">class</span> <span class="tag">Message</span> &lt; <span class="tag">ApplicationRecord</span>
+  <span class="kw">include</span> <span class="tag">Upkeep</span>::<span class="tag">Broadcastable</span>
+<span class="kw">end</span></pre>
+        </div>
+      </div>
+      <div class="surface-row">
+        <div class="surface-desc">
+          <h5>coalesce a burst</h5>
+          <p>Thousand-row imports collapse to one push per affected record. Your users see one update, not a thousand flickers.</p>
+        </div>
+        <div class="surface-code">
+<pre class="code"><span class="tag">Upkeep</span>.batch <span class="kw">do</span>
+  messages.each { |m| m.update!(<span class="sym">status:</span> <span class="str">"archived"</span>) }
+<span class="kw">end</span></pre>
+        </div>
+      </div>
+      <div class="surface-row">
+        <div class="surface-desc">
+          <h5>batching across jobs</h5>
+          <p>The same coalescing inside ActiveJob, Sidekiq, or a plain Thread. Background work stays invisible until it's done.</p>
+        </div>
+        <div class="surface-code">
+<pre class="code"><span class="tag">Upkeep</span>.batch_global <span class="kw">do</span>
+  <span class="tag">Message</span>.find_each { |m| m.touch }
+<span class="kw">end</span></pre>
+        </div>
+      </div>
+      <div class="surface-row">
+        <div class="surface-desc">
+          <h5>a nudge instead of a push</h5>
+          <p>When you want the cheapest possible update, tell clients "something changed" and let them refetch via a normal HTTP GET.</p>
+        </div>
+        <div class="surface-code">
+<pre class="code"><span class="tag">Upkeep</span>.version_bump(<span class="sym">@board</span>)</pre>
+        </div>
+      </div>
+      <div class="surface-row">
+        <div class="surface-desc">
+          <h5>stay silent</h5>
+          <p>Migrations, backfills, audit logs, anything you don't want to push. The escape hatch is one block.</p>
+        </div>
+        <div class="surface-code">
+<pre class="code"><span class="tag">Upkeep</span>.skip_tracking <span class="kw">do</span>
+  <span class="tag">Message</span>.update_all(<span class="sym">status:</span> <span class="str">"migrated"</span>)
+<span class="kw">end</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PRIOR ART ===== -->
+<section class="s" id="refs">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 08</div>
+      <h2 class="s-title">Research-grade foundations</h2>
+      <div class="s-sub">incremental view maintenance for the web</div>
+    </div>
+    <div class="priorart">
+      <div>
+        <p>Upkeep is a materialized-view engine for HTML. Incremental view maintenance and optimistic concurrency control are decades-old database techniques with a deep literature and well-understood performance. We took the shape that databases use to keep derived tables fresh and pointed it at the rendered page.</p>
+        <p>The page is a view. The read-set is its defining query. A write is a delta. The render is the row. Every decision in Upkeep follows from that analogy, which is why it holds up at scale.</p>
+        <p>The result is a system with strong theoretical guarantees about which fragments need to update, rather than a heuristic about which broadcasts might reach the right client.</p>
+      </div>
+      <dl class="refs">
+        <dt>incremental view maintenance</dt>
+        <dd>Gupta &amp; Mumick, Maintenance of Materialized Views <span class="year">1995</span></dd>
+        <dt>streaming dataflow for web apps</dt>
+        <dd>Gjengset et al., Noria: Partial State and Incremental Compute <span class="year">OSDI 2018</span></dd>
+        <dt>optimistic concurrency</dt>
+        <dd>Kung &amp; Robinson, On Optimistic Methods for Concurrency Control <span class="year">1981</span></dd>
+        <dt>statics / dynamics transport</dt>
+        <dd>Phoenix LiveView; Cutout <span class="year">prior work in Elixir / Ruby</span></dd>
+        <dt>two-tier subscription index</dt>
+        <dd>Convex reactor <span class="year">2023</span></dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- ===== WHO IT'S FOR ===== -->
+<section class="s" id="who">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 09</div>
+      <h2 class="s-title">Who it's for</h2>
+      <div class="s-sub">the apps that feel alive</div>
+    </div>
+    <div class="bullets">
+      <div class="bullet">
+        <div class="tag">teams shipping</div>
+        <h4>Collaborative SaaS</h4>
+        <p>Kanbans, shared docs, CRMs, dashboards, CMSes. Anywhere a second person on the page is an expected feature and your Turbo-Streams setup has grown into a maintenance burden.</p>
+      </div>
+      <div class="bullet">
+        <div class="tag">teams starting</div>
+        <h4>Ex-SPA Rails shops</h4>
+        <p>Teams rebuilding their React front end on Rails who want the velocity of monolithic ERB without giving up the realtime feel their users expect.</p>
+      </div>
+      <div class="bullet">
+        <div class="tag">teams growing</div>
+        <h4>Realtime products at scale</h4>
+        <p>Chat, multiplayer tools, live ops consoles. The architecture is designed around the performance walls that hit every reactive system past a few thousand concurrent users.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== INSTALL ===== -->
+<section class="s" id="install">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 10</div>
+      <h2 class="s-title">Try it in your app</h2>
+      <div class="s-sub">one bundle install away</div>
+    </div>
+
+    <div class="codepair" style="margin-top:0;">
+      <div class="codecard">
+        <div class="codehead"><span class="filename">Gemfile</span><span class="pill">Ruby</span></div>
+<pre class="code">gem <span class="str">"upkeep"</span>, <span class="sym">"~&gt; 0.1"</span>
+
+<span class="cmt"># or, to track main:</span>
+gem <span class="str">"upkeep"</span>, <span class="sym">github:</span> <span class="str">"upkeep-rb/upkeep"</span></pre>
+      </div>
+      <div class="codecard">
+        <div class="codehead"><span class="filename">bin/rails</span><span class="pill">shell</span></div>
+<pre class="code"><span class="cmt"># bundle, install, migrate</span>
+bundle install
+bin/rails upkeep:install
+bin/rails db:migrate
+
+<span class="cmt"># then in any model you want reactive:</span>
+<span class="cmt">#   include Upkeep::Broadcastable</span></pre>
+      </div>
+    </div>
+
+    <div style="display:flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; align-items: center;">
+      <a href="#" class="btn primary" style="text-decoration:none; padding: 9px 16px; font-size: 13px;">→ get started</a>
+      <a href="#" class="btn ghost" style="text-decoration:none; padding: 9px 16px; font-size: 13px;">read the guide</a>
+      <a href="#" class="btn ghost" style="text-decoration:none; padding: 9px 16px; font-size: 13px;">see example apps</a>
+      <span style="margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);">
+        building something with Upkeep? <a href="#" style="color: var(--orange-ink);">tell us →</a>
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="f">
+  <div class="wrap">
+    <div class="f-row">
+      <div class="f-col">
+        <h6>repo</h6>
+        <a href="#">github.com/upkeep-rb/upkeep</a>
+        <a href="#">issues</a>
+        <a href="#">changelog</a>
+      </div>
+      <div class="f-col">
+        <h6>docs</h6>
+        <a href="#">guide</a>
+        <a href="#">API reference</a>
+        <a href="#">RECIPES.md</a>
+      </div>
+      <div class="f-col">
+        <h6>examples</h6>
+        <a href="#">kanban-ex</a>
+        <a href="#">chat-ex</a>
+        <a href="#">dashboard-ex</a>
+      </div>
+      <div class="f-col">
+        <h6>community</h6>
+        <a href="#">Rails discuss thread</a>
+        <a href="#">matrix chat</a>
+        <a href="#">mailing list</a>
+      </div>
+    </div>
+    <div class="f-bottom">
+      <div>MIT · © 2026 upkeep contributors</div>
+      <div>live UIs for Rails · made for builders</div>
+    </div>
+  </div>
+</footer>
+
+<script src="js/hero.js?v=4"></script>
+<script src="js/demo.js?v=4"></script>
+<script src="js/lessons.js?v=6"></script>
+</body>
+</html>
