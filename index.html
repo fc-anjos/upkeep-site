@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
-<link rel="stylesheet" href="/upkeep-site/_bridgetown/static/index.2AKLYLVV.css">
-<script src="/upkeep-site/_bridgetown/static/index.D5RRF7WU.js" defer></script>
+<link rel="stylesheet" href="/upkeep-site/_bridgetown/static/index.UMZJNF6S.css">
+<script src="/upkeep-site/_bridgetown/static/index.2YPOBRKK.js" defer></script>
 
 </head>
 <body data-direction="readme" data-font="plex" data-accents="true">
@@ -496,54 +496,164 @@ enough to reason about.
       <div class="s-sub">next to LiveView, Turbo, and the data-side IVM stack</div>
     </div>
 
-    <table class="compare">
-      <thead>
-        <tr>
-            <th style="width:22%"></th>
-            <th>Phoenix LiveView</th>
-            <th>Hotwire / Turbo Streams</th>
-            <th>Convex · ElectricSQL · Materialize</th>
-            <th><strong>upkeep</strong></th>
-        </tr>
-      </thead>
-      <tbody>
+    <div class="compare-stack">
+        <div class="cmp-dim">
+          <div class="cmp-eyebrow">dependency graph lives</div>
+          <dl class="cmp-pairs">
+              <div class="cmp-pair">
+                <dt>Phoenix LiveView</dt>
+                <dd>in the LiveView module's assigns</dd>
+              </div>
+              <div class="cmp-pair">
+                <dt>Hotwire / Turbo Streams</dt>
+                <dd>in your head and in <code>broadcasts_to</code></dd>
+              </div>
+              <div class="cmp-pair">
+                <dt>Convex · ElectricSQL · Materialize</dt>
+                <dd>in the database's query plan</dd>
+              </div>
+              <div class="cmp-pair us">
+                <dt><strong>upkeep</strong></dt>
+                <dd><strong>in the ReadSet</strong>, derived from the queries the render actually ran</dd>
+              </div>
+          </dl>
+        </div>
+        <div class="cmp-dim">
+          <div class="cmp-eyebrow">authoring surface</div>
+          <dl class="cmp-pairs">
+              <div class="cmp-pair">
+                <dt>Phoenix LiveView</dt>
+                <dd>LiveView module plus HEEx</dd>
+              </div>
+              <div class="cmp-pair">
+                <dt>Hotwire / Turbo Streams</dt>
+                <dd>ERB + explicit stream targets</dd>
+              </div>
+              <div class="cmp-pair">
+                <dt>Convex · ElectricSQL · Materialize</dt>
+                <dd>query language + subscriptions</dd>
+              </div>
+              <div class="cmp-pair us">
+                <dt><strong>upkeep</strong></dt>
+                <dd><strong>normal ERB and normal ActiveRecord</strong></dd>
+              </div>
+          </dl>
+        </div>
+        <div class="cmp-dim">
+          <div class="cmp-eyebrow">transport shape</div>
+          <dl class="cmp-pairs">
+              <div class="cmp-pair">
+                <dt>Phoenix LiveView</dt>
+                <dd>statics + dynamics over socket</dd>
+              </div>
+              <div class="cmp-pair">
+                <dt>Hotwire / Turbo Streams</dt>
+                <dd>Turbo Stream HTML fragments</dd>
+              </div>
+              <div class="cmp-pair">
+                <dt>Convex · ElectricSQL · Materialize</dt>
+                <dd>SQL deltas or patches</dd>
+              </div>
+              <div class="cmp-pair us">
+                <dt><strong>upkeep</strong></dt>
+                <dd><strong>statics cached, dynamics streamed</strong>; Idiomorph on the client</dd>
+              </div>
+          </dl>
+        </div>
+        <div class="cmp-dim">
+          <div class="cmp-eyebrow">view granularity</div>
+          <dl class="cmp-pairs">
+              <div class="cmp-pair">
+                <dt>Phoenix LiveView</dt>
+                <dd>whole LiveView</dd>
+              </div>
+              <div class="cmp-pair">
+                <dt>Hotwire / Turbo Streams</dt>
+                <dd>whatever you target</dd>
+              </div>
+              <div class="cmp-pair">
+                <dt>Convex · ElectricSQL · Materialize</dt>
+                <dd>per-row</dd>
+              </div>
+              <div class="cmp-pair us">
+                <dt><strong>upkeep</strong></dt>
+                <dd><strong>per-fragment</strong>, per-subscriber</dd>
+              </div>
+          </dl>
+        </div>
+        <div class="cmp-dim">
+          <div class="cmp-eyebrow">the hard part</div>
+          <dl class="cmp-pairs">
+              <div class="cmp-pair">
+                <dt>Phoenix LiveView</dt>
+                <dd>state in a process</dd>
+              </div>
+              <div class="cmp-pair">
+                <dt>Hotwire / Turbo Streams</dt>
+                <dd>keeping broadcasts in sync with views</dd>
+              </div>
+              <div class="cmp-pair">
+                <dt>Convex · ElectricSQL · Materialize</dt>
+                <dd>integrating with app code</dd>
+              </div>
+              <div class="cmp-pair us">
+                <dt><strong>upkeep</strong></dt>
+                <dd><strong>render throughput</strong>; tier 2 sidecar is the path</dd>
+              </div>
+          </dl>
+        </div>
+    </div>
+
+    <div class="compare-table scroll-x">
+      <table class="compare">
+        <thead>
           <tr>
-            <td class="row-h">dependency graph lives</td>
-              <td>in the LiveView module's assigns</td>
-              <td>in your head and in <code>broadcasts_to</code></td>
-              <td>in the database's query plan</td>
-              <td><strong>in the ReadSet</strong>, derived from the queries the render actually ran</td>
+              <th style="width:22%"></th>
+              <th>Phoenix LiveView</th>
+              <th>Hotwire / Turbo Streams</th>
+              <th>Convex · ElectricSQL · Materialize</th>
+              <th><strong>upkeep</strong></th>
           </tr>
-          <tr>
-            <td class="row-h">authoring surface</td>
-              <td>LiveView module plus HEEx</td>
-              <td>ERB + explicit stream targets</td>
-              <td>query language + subscriptions</td>
-              <td><strong>normal ERB and normal ActiveRecord</strong></td>
-          </tr>
-          <tr>
-            <td class="row-h">transport shape</td>
-              <td>statics + dynamics over socket</td>
-              <td>Turbo Stream HTML fragments</td>
-              <td>SQL deltas or patches</td>
-              <td><strong>statics cached, dynamics streamed</strong>; Idiomorph on the client</td>
-          </tr>
-          <tr>
-            <td class="row-h">view granularity</td>
-              <td>whole LiveView</td>
-              <td>whatever you target</td>
-              <td>per-row</td>
-              <td><strong>per-fragment</strong>, per-subscriber</td>
-          </tr>
-          <tr>
-            <td class="row-h">the hard part</td>
-              <td>state in a process</td>
-              <td>keeping broadcasts in sync with views</td>
-              <td>integrating with app code</td>
-              <td><strong>render throughput</strong>; tier 2 sidecar is the path</td>
-          </tr>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+            <tr>
+              <td class="row-h">dependency graph lives</td>
+                <td>in the LiveView module's assigns</td>
+                <td>in your head and in <code>broadcasts_to</code></td>
+                <td>in the database's query plan</td>
+                <td><strong>in the ReadSet</strong>, derived from the queries the render actually ran</td>
+            </tr>
+            <tr>
+              <td class="row-h">authoring surface</td>
+                <td>LiveView module plus HEEx</td>
+                <td>ERB + explicit stream targets</td>
+                <td>query language + subscriptions</td>
+                <td><strong>normal ERB and normal ActiveRecord</strong></td>
+            </tr>
+            <tr>
+              <td class="row-h">transport shape</td>
+                <td>statics + dynamics over socket</td>
+                <td>Turbo Stream HTML fragments</td>
+                <td>SQL deltas or patches</td>
+                <td><strong>statics cached, dynamics streamed</strong>; Idiomorph on the client</td>
+            </tr>
+            <tr>
+              <td class="row-h">view granularity</td>
+                <td>whole LiveView</td>
+                <td>whatever you target</td>
+                <td>per-row</td>
+                <td><strong>per-fragment</strong>, per-subscriber</td>
+            </tr>
+            <tr>
+              <td class="row-h">the hard part</td>
+                <td>state in a process</td>
+                <td>keeping broadcasts in sync with views</td>
+                <td>integrating with app code</td>
+                <td><strong>render throughput</strong>; tier 2 sidecar is the path</td>
+            </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 
