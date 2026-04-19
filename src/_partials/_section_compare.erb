@@ -1,4 +1,5 @@
 <% d = section.data %>
+<% us_index = d.headers.each_with_index.find { |h, _| h.to_s.downcase.include?("upkeep") }&.last %>
 <section class="s" id="<%= d.id %>">
   <div class="wrap">
     <div class="s-head">
@@ -7,25 +8,47 @@
       <div class="s-sub"><%= d.subtitle %></div>
     </div>
 
-    <table class="compare">
-      <thead>
-        <tr>
-          <% d.headers.each_with_index do |h, i| %>
-            <% w = d.header_widths&.dig(i) %>
-            <th<%= w ? %( style="width:#{w}").html_safe : "" %>><%= h.html_safe %></th>
-          <% end %>
-        </tr>
-      </thead>
-      <tbody>
-        <% d.rows.each do |r| %>
+    <%# Mobile: stacked, typographic comparison — no cards %>
+    <div class="compare-stack">
+      <% d.rows.each do |r| %>
+        <div class="cmp-dim">
+          <div class="cmp-eyebrow"><%= r.row_header %></div>
+          <dl class="cmp-pairs">
+            <% d.headers.each_with_index do |h, i| %>
+              <% next if i == 0 %>
+              <% is_us = (us_index && i == us_index) %>
+              <div class="cmp-pair<%= is_us ? ' us' : '' %>">
+                <dt><%= h.html_safe %></dt>
+                <dd><%= r.cells[i - 1].html_safe %></dd>
+              </div>
+            <% end %>
+          </dl>
+        </div>
+      <% end %>
+    </div>
+
+    <%# Desktop: full table %>
+    <div class="compare-table scroll-x">
+      <table class="compare">
+        <thead>
           <tr>
-            <td class="row-h"><%= r.row_header %></td>
-            <% r.cells.each do |cell| %>
-              <td><%= cell.html_safe %></td>
+            <% d.headers.each_with_index do |h, i| %>
+              <% w = d.header_widths&.dig(i) %>
+              <th<%= w ? %( style="width:#{w}").html_safe : "" %>><%= h.html_safe %></th>
             <% end %>
           </tr>
-        <% end %>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <% d.rows.each do |r| %>
+            <tr>
+              <td class="row-h"><%= r.row_header %></td>
+              <% r.cells.each do |cell| %>
+                <td><%= cell.html_safe %></td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
