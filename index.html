@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>upkeep · incremental view maintenance for Rails</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+<link rel="stylesheet" href="/_bridgetown/static/index.RKPM7DWX.css">
+<script src="/_bridgetown/static/index.G4IKPAPQ.js" defer></script>
+
+</head>
+<body data-direction="readme" data-font="plex" data-accents="true">
+
+<!-- Masthead -->
+<div class="masthead">
+  <div class="wrap mast-row">
+    <div class="brand">
+      <span class="mk"></span> upkeep
+    </div>
+    <nav class="nav">
+      <a href="#what">what</a>
+      <a href="#how">how</a>
+      <a href="#demo">demo</a>
+      <a href="#lessons">lessons</a>
+      <a href="#perf">performance</a>
+      <a href="#surface">api</a>
+      <a href="#install">install</a>
+    </nav>
+  </div>
+</div>
+
+<div class="statusbar">
+  <div class="wrap row">
+    <span><span class="dot"></span>open source · MIT</span>
+    <span>drop-in for Rails 7.1+ <span class="sep">·</span> Ruby 3.2+ <span class="sep">·</span> ActionCable</span>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="bar"></span>live UIs for Rails · open source</div>
+    <h1 class="tagline">
+      Rails, <span class="orange">live by default.</span>
+      <span class="soft">Write normal ERB. Ship realtime apps.</span>
+    </h1>
+    <p class="lede">Upkeep makes every server-rendered page reactive. Change a record; every browser viewing the views that depend on it updates in place. No broadcasts to wire up, no cache keys to maintain, no SPA to build. Rails apps move at chat-app speed with the productivity of plain ERB.
+</p>
+    <p class="lede-two">The whole surface is <b>one line per reactive model</b>. The rest of your
+app is the Rails you already write. Behind the scenes, Upkeep tracks what
+each render touched and, when data changes, pushes only the HTML that
+actually changed to only the clients that care. Targeted, fast, and small
+enough to reason about.
+</p>
+
+    <div class="diagram dgm">
+      <div class="diagram-label">fig. 1 · read-set · overlap · push</div>
+      <svg viewBox="0 0 980 260" aria-label="records, fragments, clients">
+  <text x="80"  y="24" class="stage-label">records</text>
+  <text x="380" y="24" class="stage-label">fragments (read-sets)</text>
+  <text x="800" y="24" class="stage-label">subscribers</text>
+
+  <g id="h-recs">
+    <g class="node" data-id="r1" transform="translate(60,50)"><rect width="160" height="38" rx="1"/><text x="12" y="24">Card#42</text></g>
+    <g class="node" data-id="r2" transform="translate(60,102)"><rect width="160" height="38" rx="1"/><text x="12" y="24">Card#43</text></g>
+    <g class="node" data-id="r3" transform="translate(60,154)"><rect width="160" height="38" rx="1"/><text x="12" y="24">User#7</text></g>
+  </g>
+
+  <g id="h-frags">
+    <g class="node" data-id="f1" transform="translate(360,40)"><rect width="300" height="50" rx="1"/><text x="12" y="20">_card.html.erb</text><text x="12" y="38" opacity=".6">reads: Card#42</text></g>
+    <g class="node" data-id="f2" transform="translate(360,100)"><rect width="300" height="50" rx="1"/><text x="12" y="20">_lane.html.erb</text><text x="12" y="38" opacity=".6">reads: Card#42, Card#43</text></g>
+    <g class="node" data-id="f3" transform="translate(360,160)"><rect width="300" height="50" rx="1"/><text x="12" y="20">_avatar.html.erb</text><text x="12" y="38" opacity=".6">reads: User#7</text></g>
+  </g>
+
+  <g id="h-clients">
+    <g class="node" data-id="c1" transform="translate(790,50)"><rect width="140" height="38" rx="1"/><text x="12" y="24">session A</text></g>
+    <g class="node" data-id="c2" transform="translate(790,102)"><rect width="140" height="38" rx="1"/><text x="12" y="24">session B</text></g>
+    <g class="node" data-id="c3" transform="translate(790,154)"><rect width="140" height="38" rx="1"/><text x="12" y="24">session C</text></g>
+  </g>
+
+  <g>
+    <path class="edge read" data-rf="r1-f1" d="M220 69 C 280 69, 320 65, 360 65"/>
+    <path class="edge read" data-rf="r1-f2" d="M220 69 C 290 95, 320 122, 360 125"/>
+    <path class="edge read" data-rf="r2-f2" d="M220 121 C 280 121, 320 124, 360 125"/>
+    <path class="edge read" data-rf="r3-f3" d="M220 173 C 280 173, 320 183, 360 185"/>
+  </g>
+
+  <g>
+    <path class="edge push" data-fc="f1-c1" d="M660 65 C 720 65, 760 65, 790 69"/>
+    <path class="edge push" data-fc="f2-c1" d="M660 125 C 720 105, 760 80, 790 75"/>
+    <path class="edge push" data-fc="f2-c2" d="M660 125 C 720 125, 760 124, 790 121"/>
+    <path class="edge push" data-fc="f3-c3" d="M660 185 C 720 180, 760 175, 790 173"/>
+  </g>
+
+  <text x="60"  y="230" class="caption" id="h-caption">standby · read-sets recorded during initial render</text>
+</svg>
+
+      <div class="diagram-legend">
+        <span class="li-ring"><i></i>fragment</span>
+        <span class="li-orange"><i></i>write</span>
+        <span class="li-blue"><i></i>push</span>
+      </div>
+    </div>
+
+    <div class="codepair">
+        <div class="codecard">
+          <div class="codehead">
+            <span class="filename">app/views/cards/_card.html.erb</span>
+            <span class="pill">ERB</span>
+          </div>
+<pre class="code"><span class="cmt">&lt;%# a plain partial · nothing upkeep-specific %&gt;</span>
+&lt;<span class="tag">article</span> <span class="sym">class</span>=<span class="str">"card"</span> <span class="sym">id</span>=<span class="str">"&lt;%= dom_id(card) %&gt;"</span>&gt;
+  &lt;<span class="tag">h3</span>&gt;<span class="erb">&lt;%= card.title %&gt;</span>&lt;/<span class="tag">h3</span>&gt;
+  &lt;<span class="tag">p</span>&gt;<span class="erb">&lt;%= card.body %&gt;</span>&lt;/<span class="tag">p</span>&gt;
+  &lt;<span class="tag">footer</span>&gt;
+    <span class="erb">&lt;%= render card.assignee %&gt;</span>
+    &lt;<span class="tag">time</span>&gt;<span class="erb">&lt;%= time_ago_in_words(card.updated_at) %&gt;</span>&lt;/<span class="tag">time</span>&gt;
+  &lt;/<span class="tag">footer</span>&gt;
+&lt;/<span class="tag">article</span>&gt;</pre>
+        </div>
+        <div class="codecard">
+          <div class="codehead">
+            <span class="filename">app/controllers/cards_controller.rb</span>
+            <span class="pill">Ruby</span>
+          </div>
+<pre class="code"><span class="kw">class</span> <span class="tag">Card</span> &lt; <span class="tag">ApplicationRecord</span>
+  <span class="kw">include</span> <span class="tag">Upkeep</span>::<span class="tag">Broadcastable</span>
+<span class="kw">end</span>
+
+<span class="cmt"># That is the whole API. Any page that renders a Card</span>
+<span class="cmt"># now updates live, in every connected browser,</span>
+<span class="cmt"># whenever a Card changes. No broadcasts to wire,</span>
+<span class="cmt"># no cache keys, no Stimulus gymnastics.</span></pre>
+        </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="what">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 01</div>
+      <h2 class="s-title">What changes for you</h2>
+      <div class="s-sub">three lines</div>
+    </div>
+
+    <div class="bullets">
+        <div class="bullet">
+          <div class="tag">ship faster</div>
+          <h4>Keep your stack</h4>
+          <p>The partials, controllers, and ActiveRecord queries you have today keep working. No DSL to learn, no component library to adopt, no SPA rewrite. New teammates are productive on day one.
+</p>
+        </div>
+        <div class="bullet">
+          <div class="tag">move less code</div>
+          <h4>Delete the plumbing</h4>
+          <p>Drop the <code>broadcasts_to</code> calls, the <code>after_update_commit</code> callbacks, the <code>touch:</code> chains, the cache-key book-keeping. Upkeep derives the dependency graph for you, so you stop maintaining it.
+</p>
+        </div>
+        <div class="bullet">
+          <div class="tag">users feel it</div>
+          <h4>Updates that just appear</h4>
+          <p>A change to one record updates exactly the UI that depends on it, in every connected browser, in milliseconds. Focus, cursor position, scroll, and form state all stay intact. It feels like magic.
+</p>
+        </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="how">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 02</div>
+      <h2 class="s-title">How it works</h2>
+      <div class="s-sub">five pieces · small, auditable, fast</div>
+    </div>
+
+    <div class="arch">
+        <div class="arch-row">
+          <div class="arch-index"><span class="num">01</span>the compiler</div>
+          <div class="arch-title">
+            <h4>Herb + ReActionView turn ERB into instrumented templates.</h4>
+            <div class="sub">parse · walk · rewrite · at boot</div>
+          </div>
+          <div class="arch-body">
+            <p>Rails' default ERB handler is an opaque string concatenator. It produces output; it doesn't know what is an expression, what is a tag, what is a conditional. That makes dependency tracking impossible from the outside.</p>
+<p>Herb is an HTML-aware ERB parser written in C with Ruby, JS, and WASM bindings. It produces a real AST: <code>&lt;h1&gt;</code> becomes an <code>HTMLElementNode</code>, <code>&lt;%= @message.title %&gt;</code> an <code>ERBContentNode</code> inside it. ReActionView plugs that parser into Rails as a template handler, replacing erubi for reactive partials.</p>
+<p>Upkeep hooks into the compilation pipeline and rewrites the tree. Every <code>&lt;%= expr %&gt;</code> becomes <code>Capture.capture(slot_index)</code>. Every <code>&lt;% if %&gt;</code> / <code>&lt;% elsif %&gt;</code> becomes <code>Capture.branch</code>. Every <code>@ivar</code> read becomes <code>Capture.ivar</code>. Reactive partials get wrapped in a <code>&lt;signal-fragment&gt;</code> boundary.</p>
+<div class="callout">During a normal page render the Capture calls are zero-cost passthroughs. During a re-render they record a slot-by-slot decomposition of the fragment. Invisible to authors; you still see plain ERB.</div>
+
+          </div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-index"><span class="num">02</span>read-set tracking</div>
+          <div class="arch-title">
+            <h4>The BatchBroadcasts middleware captures what each render touched.</h4>
+            <div class="sub">predicates · type-cast · structured</div>
+          </div>
+          <div class="arch-body">
+            <p>When a request comes in, QueryTracking activates: an <code>ActiveRecord::Relation</code> prepend that intercepts every query method and captures its WHERE predicates as structured <code>Predicate</code> objects, one per condition: <code>(table, column, operator, value, type)</code>.</p>
+<p>Values go through ActiveRecord's type system, so the String <code>"42"</code> and the Integer <code>42</code> collapse to the same predicate. The render runs, and the middleware collects every predicate into a <code>ReadSet</code>:</p>
+<pre class="code" style="background:var(--paper-2); border:1px solid var(--paper-rule); padding:12px 14px; margin-top:10px; font-size:12px;">ReadSet {
+  (messages, room_id, =,  17),
+  (users,    id,      IN, [3, 8, 12]),
+  (rooms,    id,      =,  17),
+}</pre>
+<div class="callout blue">The page is a materialized view; the ReadSet is its defining query. That single idea replaces every broadcast target, cache key, and <code>touch:</code> chain in your app.</div>
+
+          </div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-index"><span class="num">03</span>subscription &amp; handoff</div>
+          <div class="arch-title">
+            <h4>Rack env is captured with the read-set and stored.</h4>
+            <div class="sub">replay-ready · per-subscriber · signed handoff</div>
+          </div>
+          <div class="arch-body">
+            <p>After the render, the middleware captures the rack env: cookies, session, Warden state, everything needed to replay the render with the same <code>current_user</code>. It stores the URL, ReadSet, fragment metadata (locals, partial paths, record reverse index), and slot states in the configured subscription store (<code>:memory</code>, <code>:broker</code>, or <code>:active_record</code>).</p>
+<p>Before the response goes out, a <code>&lt;signal-stream-source&gt;</code> element is auto-injected with a signed token referencing the subscription. The browser parses it, opens an ActionCable connection, and subscribes to the per-subscription stream.</p>
+
+          </div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-index"><span class="num">04</span>the trigger</div>
+          <div class="arch-title">
+            <h4>Invalidation is explicit per model. Routing is O(log N + k).</h4>
+            <div class="sub">Kung-Robinson 1981 · Convex-style index</div>
+          </div>
+          <div class="arch-body">
+            <p>Reactivity is per-model and opt-in. A <code>Broadcastable</code> model's <code>after_commit</code> calls <code>Upkeep.invalidate(record, event:, changes:)</code>. The payload includes both current and pre-change values, because a row that no longer matches a query still needs to evict itself from read-sets that previously captured it.</p>
+<p>The <b>InvalidationRouter</b> picks a transport. Small deployments broadcast to a table-scoped ActionCable stream and each channel runs its own overlap check. Larger ones consult a shared SubscriptionIndex: a two-tier <code>(table, column, value)</code> hash for equality and <code>IN</code>, plus an always-check set for ranges and negations. Lookup is <code>O(log N + k)</code>, the same data structure Convex uses in production.</p>
+<p>Each receiving channel runs the overlap check: does the changed row satisfy any predicate in my read-set? If <code>room_id</code> changed from 17 to 22, two read-sets are affected: the one that matched <code>room_id = 17</code> (losing the row) and the one that matches <code>room_id = 22</code> (gaining it). The check is O(predicates), not O(rows).</p>
+<div class="callout">If nothing overlaps, the channel does nothing. Most updates touch most subscriptions zero times. That is where the scale comes from.</div>
+
+          </div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-index"><span class="num">05</span>re-render, diff, morph</div>
+          <div class="arch-title">
+            <h4>In-process render. Statics cached. Dynamics streamed.</h4>
+            <div class="sub">per-fragment fast path · full-page fallback</div>
+          </div>
+          <div class="arch-body">
+            <p>On positive overlap the channel re-renders in-process, in the same Ruby process as the WebSocket. Two paths exist. Per-fragment runs only that partial through ActionView, restoring I18n locale, time zone, and <code>Current</code> attributes from the captured snapshot. Full-page runs an in-process Rack call through the captured rack env when the fragment touches state outside the partial.</p>
+<p>The new render executes with <code>SlotContext</code> set, so the Capture calls now fire and emit a fresh <b>statics</b> / <b>dynamics</b> decomposition. The channel diffs against the stored slot state and ships only the changed dynamics:</p>
+<pre class="code" style="background:var(--paper-2); border:1px solid var(--paper-rule); padding:12px 14px; margin-top:10px; font-size:12px;"><span class="cmt"># first push: statics + dynamics</span>
+{ <span class="str">"fragments"</span>: [{ <span class="str">"id"</span>: <span class="str">"card_42_frag_91eaf6fb"</span>,
+                <span class="str">"s"</span>: [<span class="str">"&lt;h1&gt;"</span>, <span class="str">"&lt;/h1&gt;"</span>],
+                <span class="str">"d"</span>: { <span class="str">"0"</span>: <span class="str">"Updated Title"</span> } }] }
+
+<span class="cmt"># subsequent pushes: dynamics only</span>
+{ <span class="str">"fragments"</span>: [{ <span class="str">"id"</span>: <span class="str">"card_42_frag_91eaf6fb"</span>,
+                <span class="str">"d"</span>: { <span class="str">"0"</span>: <span class="str">"New Title"</span> } }] }</pre>
+<p>The client merges changed dynamics with cached statics, reconstructs full HTML, and uses Idiomorph to morph the existing fragment in place. Focus, cursor, scroll, form state, and Stimulus instances survive the update. The UI never flickers.</p>
+
+          </div>
+        </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="demo" data-demo>
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 03</div>
+      <h2 class="s-title">See it in a working board</h2>
+      <div class="s-sub">two browsers · one database</div>
+    </div>
+    <p style="color:var(--ink-2); max-width: 66ch; margin: -20px 0 28px; line-height: 1.55;">
+      Two independent sessions of the same kanban. Click any card in either pane, or use the controls, and watch updates ripple through in real time. Only the fragments that depend on the changed record re-render; everything else is untouched. This is the entire kanban app, built with plain ERB and one <code>include</code>.
+
+    </p>
+
+    <div class="demo-shell">
+      <div class="demo-panes">
+          <div class="browser" data-pane="A">
+            <div class="browser-chrome">
+              <div class="dots"><i></i><i></i><i></i></div>
+              <div class="addr">app.example.com/board/1</div>
+              <div class="session-tag a">session A</div>
+            </div>
+            <div class="browser-body"><div class="board"></div></div>
+          </div>
+          <div class="browser" data-pane="B">
+            <div class="browser-chrome">
+              <div class="dots"><i></i><i></i><i></i></div>
+              <div class="addr">app.example.com/board/1</div>
+              <div class="session-tag b">session B</div>
+            </div>
+            <div class="browser-body"><div class="board"></div></div>
+          </div>
+      </div>
+
+      <div class="demo-ctrl">
+          <button class="btn primary" data-act="move-random">write · move random card</button>
+          <button class="btn ghost" data-act="add">insert card (session A)</button>
+          <button class="btn ghost" data-act="rename">update title</button>
+          <button class="btn ghost" data-act="reset">reset</button>
+        <span style="margin-left:auto; color: var(--ink-4);">click a card to cycle its lane</span>
+      </div>
+
+      <div class="demo-log" id="demoLog"></div>
+
+      <div class="kv">
+          <span>subscribers: <b id="kv-subs">2</b></span>
+          <span>writes: <b id="kv-writes">0</b></span>
+          <span>overlap checks: <b id="kv-checks">0</b></span>
+          <span>pushes sent: <b id="kv-pushes">0</b></span>
+          <span>no-op checks: <b id="kv-noops">0</b></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="lessons">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 04</div>
+      <h2 class="s-title">Six things server-side reactivity got wrong</h2>
+      <div class="s-sub">and how we fixed each one</div>
+    </div>
+
+    <p style="color:var(--ink-2); max-width: 72ch; margin: -20px 0 28px; line-height: 1.6;">
+      Live HTML from the server is an old idea. Previous attempts hit the same six walls. Each is a real engineering problem with a real solution. Here they are, with the fix shown next to each one.
+
+    </p>
+
+    <div class="lessons-grid">
+        <div class="lesson-card">
+          <div class="lesson-idx"><span>Lesson</span><span class="big">01</span><span class="kind">Per-client state that never stops growing</span></div>
+          <div class="lesson-body">
+            <div class="then-block">
+              <span class="lab">Then</span>
+              <p>Earlier systems kept a copy of every row each client had seen, so the server could diff new data against it. As clients queried more data, the per-client buffer grew without bound. Long-lived sessions eventually OOM'd the server.
+</p>
+            </div>
+            <div>
+              <span class="lab now">Now, in Upkeep</span>
+              <p>Per-channel state is bounded structurally. We hold read-set predicates and a small delivery cap, not a shadow copy of the database. The upcoming result-hash refactor reduces this to a 32-byte hash per fragment per subscriber.
+</p>
+            </div>
+          </div>
+          <div class="lesson-diagram" data-diagram="state-growth">
+            <div class="cap"><span>then: buffer grows</span>&nbsp;·&nbsp;<span class="now">now: bounded</span></div>
+          </div>
+        </div>
+        <div class="lesson-card">
+          <div class="lesson-idx"><span>Lesson</span><span class="big">02</span><span class="kind">Every write checked against every subscription</span></div>
+          <div class="lesson-body">
+            <div class="then-block">
+              <span class="lab">Then</span>
+              <p>When a row changed, the server asked every open subscription, “do you care about this?” With a thousand subscribers, one write became a thousand predicate checks. Throughput fell off a cliff long before CPU did.
+</p>
+            </div>
+            <div>
+              <span class="lab now">Now, in Upkeep</span>
+              <p>A centralized router indexes subscriptions by <code>(table, column, value)</code>. On a write, it looks up exactly the subscriptions that care, in <code>O(log N + k)</code>. Ranges and negations fall into a small always-check set.
+</p>
+            </div>
+          </div>
+          <div class="lesson-diagram" data-diagram="fanout-check">
+            <div class="cap"><span>then: every sub checked</span>&nbsp;·&nbsp;<span class="now">now: indexed lookup</span></div>
+          </div>
+        </div>
+        <div class="lesson-card">
+          <div class="lesson-idx"><span>Lesson</span><span class="big">03</span><span class="kind">Everything reactive, nothing measurable</span></div>
+          <div class="lesson-body">
+            <div class="then-block">
+              <span class="lab">Then</span>
+              <p>Reactivity was on for every model and every query by default. When the server fell over, there was no way to see which view, which query, or which model was responsible. You could not profile what you could not name.
+</p>
+            </div>
+            <div>
+              <span class="lab now">Now, in Upkeep</span>
+              <p>Reactivity is opt-in per model. Every step emits an <code>ActiveSupport::Notifications</code> event: <code>upkeep.invalidation</code>, <code>upkeep.overlap_check</code>, <code>upkeep.batch_flush</code>. You profile a live view the way you profile SQL.
+</p>
+            </div>
+          </div>
+          <div class="lesson-diagram" data-diagram="cost-visibility">
+            <div class="cap"><span>then: opaque</span>&nbsp;·&nbsp;<span class="now">now: instrumented</span></div>
+          </div>
+        </div>
+        <div class="lesson-card">
+          <div class="lesson-idx"><span>Lesson</span><span class="big">04</span><span class="kind">No backpressure on bursts</span></div>
+          <div class="lesson-body">
+            <div class="then-block">
+              <span class="lab">Then</span>
+              <p>A bulk import emitted a write per row. Each write produced one push per affected subscriber. A reasonable import became millions of frames on the wire, and the first server to notice was the one that crashed.
+</p>
+            </div>
+            <div>
+              <span class="lab now">Now, in Upkeep</span>
+              <p>Bursts are coalesced at every boundary. Per-channel queues merge duplicates, in-flight delivery is capped, a splay spreads fan-out, and <code>Upkeep.batch</code> collapses a thousand updates into one push per affected record on purpose.
+</p>
+            </div>
+          </div>
+          <div class="lesson-diagram" data-diagram="backpressure">
+            <div class="cap"><span>then: firehose</span>&nbsp;·&nbsp;<span class="now">now: coalesced</span></div>
+          </div>
+        </div>
+        <div class="lesson-card">
+          <div class="lesson-idx"><span>Lesson</span><span class="big">05</span><span class="kind">Stateful connections, sticky sessions</span></div>
+          <div class="lesson-body">
+            <div class="then-block">
+              <span class="lab">Then</span>
+              <p>Each WebSocket held session state the server could not reproduce. Load balancers needed sticky sessions, deploys dropped live state, and horizontal scaling meant copying that state between nodes over the network.
+</p>
+            </div>
+            <div>
+              <span class="lab now">Now, in Upkeep</span>
+              <p>The render path is a pure function of <code>(url, fragment_id, locals, snapshot)</code>. The substrate for a stateless sidecar is already in place. Connections become cheap and portable.
+</p>
+            </div>
+          </div>
+          <div class="lesson-diagram" data-diagram="stateless">
+            <div class="cap"><span>then: sticky to one box</span>&nbsp;·&nbsp;<span class="now">now: any worker</span></div>
+          </div>
+        </div>
+        <div class="lesson-card">
+          <div class="lesson-idx"><span>Lesson</span><span class="big">06</span><span class="kind">Server-side rendering as the performance floor</span></div>
+          <div class="lesson-body">
+            <div class="then-block">
+              <span class="lab">Then</span>
+              <p>Every update re-ran a whole template on the server. Render cost compounded with fan-out. Teams migrated to clients-render-everything architectures to escape it.
+</p>
+            </div>
+            <div>
+              <span class="lab now">Now, in Upkeep</span>
+              <p>Fragments render in roughly 0.3 ms in-process; full pages in 2.5 ms. The pipeline is stateless, so render workers scale horizontally. Statics are cached once; only the dynamics travel on each update.
+</p>
+            </div>
+          </div>
+          <div class="lesson-diagram" data-diagram="render-scale">
+            <div class="cap"><span>then: one renderer</span>&nbsp;·&nbsp;<span class="now">now: horizontal</span></div>
+          </div>
+        </div>
+    </div>
+
+    <h3 style="font-family: var(--font-display); font-weight: 500; font-size: 19px; letter-spacing: -0.01em; margin: 44px 0 0;">The principles we hold</h3>
+    <p style="font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); letter-spacing: 0.04em; margin: 4px 0 16px;">six invariants that hold at every scale</p>
+
+    <div class="invariants">
+        <div class="invariant">
+          <div class="n">I</div>
+          <div>
+            <h5>ReadSet is the source of truth</h5>
+            <p>All invalidation decisions flow from predicate overlap, never from stream membership.</p>
+          </div>
+        </div>
+        <div class="invariant">
+          <div class="n">II</div>
+          <div>
+            <h5>Rendering is a pure function</h5>
+            <p><code>(url, fragment_id, locals, snapshot) → (statics, dynamics, read_set)</code>. No side effects, no connection state.
+</p>
+          </div>
+        </div>
+        <div class="invariant">
+          <div class="n">III</div>
+          <div>
+            <h5>Delivery is targeted</h5>
+            <p>The system knows which subscriptions are affected before sending. Broadcast-then-filter is the anti-pattern.</p>
+          </div>
+        </div>
+        <div class="invariant">
+          <div class="n">IV</div>
+          <div>
+            <h5>Backpressure at every boundary</h5>
+            <p>Per-channel queue, in-flight cap, drain limits, splaying, batch coalescing. Never unbounded.</p>
+          </div>
+        </div>
+        <div class="invariant">
+          <div class="n">V</div>
+          <div>
+            <h5>Cost is visible</h5>
+            <p>Every invalidation, render, and delivery is instrumented via ActiveSupport::Notifications.</p>
+          </div>
+        </div>
+        <div class="invariant">
+          <div class="n">VI</div>
+          <div>
+            <h5>Reactivity is explicit</h5>
+            <p>Models opt in. Columns can be filtered. Bulk operations can skip tracking.</p>
+          </div>
+        </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="neighbors">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 05</div>
+      <h2 class="s-title">Where it fits</h2>
+      <div class="s-sub">next to LiveView, Turbo, and the data-side IVM stack</div>
+    </div>
+
+    <table class="compare">
+      <thead>
+        <tr>
+            <th style="width:22%"></th>
+            <th>Phoenix LiveView</th>
+            <th>Hotwire / Turbo Streams</th>
+            <th>Convex · ElectricSQL · Materialize</th>
+            <th><strong>upkeep</strong></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr>
+            <td class="row-h">dependency graph lives</td>
+              <td>in the LiveView module's assigns</td>
+              <td>in your head and in <code>broadcasts_to</code></td>
+              <td>in the database's query plan</td>
+              <td><strong>in the ReadSet</strong>, derived from the queries the render actually ran</td>
+          </tr>
+          <tr>
+            <td class="row-h">authoring surface</td>
+              <td>LiveView module plus HEEx</td>
+              <td>ERB + explicit stream targets</td>
+              <td>query language + subscriptions</td>
+              <td><strong>normal ERB and normal ActiveRecord</strong></td>
+          </tr>
+          <tr>
+            <td class="row-h">transport shape</td>
+              <td>statics + dynamics over socket</td>
+              <td>Turbo Stream HTML fragments</td>
+              <td>SQL deltas or patches</td>
+              <td><strong>statics cached, dynamics streamed</strong>; Idiomorph on the client</td>
+          </tr>
+          <tr>
+            <td class="row-h">view granularity</td>
+              <td>whole LiveView</td>
+              <td>whatever you target</td>
+              <td>per-row</td>
+              <td><strong>per-fragment</strong>, per-subscriber</td>
+          </tr>
+          <tr>
+            <td class="row-h">the hard part</td>
+              <td>state in a process</td>
+              <td>keeping broadcasts in sync with views</td>
+              <td>integrating with app code</td>
+              <td><strong>render throughput</strong>; tier 2 sidecar is the path</td>
+          </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="s" id="perf">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 06</div>
+      <h2 class="s-title">Built for fanout</h2>
+      <div class="s-sub">one write, many viewers · the shape that breaks other systems</div>
+    </div>
+
+    <p style="color:var(--ink-2); max-width: 72ch; margin: -20px 0 28px; line-height: 1.6;">
+      The hard part of live HTML is not rendering. It is routing. When one write has to reach <em>N</em> viewers, the system's scaling behavior is whatever it costs to decide who gets the update. We benchmark the two fanout shapes that cover most real apps.
+
+    </p>
+
+    <div class="fanout-patterns">
+        <div class="pattern">
+          <span class="pattern-tag">Pattern A</span>
+          <h4>Broadcast fanout</h4>
+          <p>One write visible to a shared audience. Every viewer on a channel sees the same update. Typical of activity feeds, live scoreboards, shared timelines, and anything with a room model.
+</p>
+          <svg class="pattern-svg" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+  <circle cx="30" cy="60" r="10" fill="var(--orange)"/>
+  <text x="30" y="92" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--ink-3)">1 write</text>
+  <g stroke="var(--ink-3)" stroke-width="1" fill="none" opacity="0.55">
+    <path d="M 40 60 L 150 22"/><path d="M 40 60 L 150 40"/><path d="M 40 60 L 150 58"/><path d="M 40 60 L 150 76"/><path d="M 40 60 L 150 94"/>
+  </g>
+  <g fill="var(--blue)"><circle cx="160" cy="22" r="5"/><circle cx="160" cy="40" r="5"/><circle cx="160" cy="58" r="5"/><circle cx="160" cy="76" r="5"/><circle cx="160" cy="94" r="5"/></g>
+  <text x="220" y="64" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--ink-3)">N viewers</text>
+</svg>
+
+        </div>
+        <div class="pattern">
+          <span class="pattern-tag">Pattern B</span>
+          <h4>Graph fanout</h4>
+          <p>Many writers, many viewers, each viewer seeing a different slice. Cards move, users drag, filters cross. Typical of kanbans, shared documents, CRMs, and dashboards where each pane shows a different query.
+</p>
+          <svg class="pattern-svg" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+  <g fill="var(--orange)"><circle cx="30" cy="30" r="7"/><circle cx="30" cy="60" r="7"/><circle cx="30" cy="90" r="7"/></g>
+  <text x="30" y="108" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--ink-3)">writers</text>
+  <g stroke="var(--ink-3)" stroke-width="1" fill="none" opacity="0.45">
+    <path d="M 38 30 L 150 22"/><path d="M 38 30 L 150 58"/><path d="M 38 60 L 150 40"/><path d="M 38 60 L 150 76"/><path d="M 38 90 L 150 58"/><path d="M 38 90 L 150 94"/>
+  </g>
+  <g fill="var(--blue)"><circle cx="160" cy="22" r="5"/><circle cx="160" cy="40" r="5"/><circle cx="160" cy="58" r="5"/><circle cx="160" cy="76" r="5"/><circle cx="160" cy="94" r="5"/></g>
+  <text x="220" y="64" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--ink-3)">different slices</text>
+</svg>
+
+        </div>
+    </div>
+
+    <div class="perf">
+      <div class="box">
+        <h5>Throughput vs Turbo (p50, relative)</h5>
+          <div class="bar-row">
+            <span class="label">broadcast · upkeep</span>
+            <span class="bar"><i style="width:100%"></i></span>
+            <span class="num">20×</span>
+          </div>
+          <div class="bar-row">
+            <span class="label">broadcast · turbo</span>
+            <span class="bar alt"><i style="width:5%"></i></span>
+            <span class="num">1×</span>
+          </div>
+          <div class="bar-row">
+            <span class="label">graph · upkeep</span>
+            <span class="bar"><i style="width:45%"></i></span>
+            <span class="num">9×</span>
+          </div>
+          <div class="bar-row">
+            <span class="label">graph · turbo</span>
+            <span class="bar alt"><i style="width:5%"></i></span>
+            <span class="num">1×</span>
+          </div>
+      </div>
+      <div class="box">
+        <h5>Latency and footprint</h5>
+        <div class="stats">
+            <div class="stat">
+              <div class="n">0.3<span class="unit">ms</span></div>
+              <div class="lbl">per-fragment render, in-process</div>
+            </div>
+            <div class="stat">
+              <div class="n">2.5<span class="unit">ms</span></div>
+              <div class="lbl">full-page render, in-process</div>
+            </div>
+            <div class="stat">
+              <div class="n">3–5<span class="unit">ms</span></div>
+              <div class="lbl">p99 invalidation latency, microbenchmark</div>
+            </div>
+            <div class="stat">
+              <div class="n">309<span class="unit">MB</span></div>
+              <div class="lbl">peak RSS (upkeep) vs 118 MB (turbo)</div>
+            </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer">20× on broadcast fanout, 9× on graph fanout, at p50. Invalidation latency lands inside a single Rails request cycle. The pipeline is already stateless, so a dedicated render sidecar is a deployment change rather than a rewrite — the next order of magnitude comes from there.
+</div>
+  </div>
+</section>
+
+<section class="s" id="surface">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 07</div>
+      <h2 class="s-title">The whole API, on one page</h2>
+      <div class="s-sub">five methods · everything else is plain Rails</div>
+    </div>
+
+    <div class="surface">
+        <div class="surface-row">
+          <div class="surface-desc">
+            <h5>make a model live</h5>
+            <p>One line. Every view that touches this model updates in real time across every connected browser.
+</p>
+          </div>
+          <div class="surface-code">
+<pre class="code"><span class="kw">class</span> <span class="tag">Message</span> &lt; <span class="tag">ApplicationRecord</span>
+  <span class="kw">include</span> <span class="tag">Upkeep</span>::<span class="tag">Broadcastable</span>
+<span class="kw">end</span></pre>
+          </div>
+        </div>
+        <div class="surface-row">
+          <div class="surface-desc">
+            <h5>coalesce a burst</h5>
+            <p>Thousand-row imports collapse to one push per affected record. Your users see one update, not a thousand flickers.
+</p>
+          </div>
+          <div class="surface-code">
+<pre class="code"><span class="tag">Upkeep</span>.batch <span class="kw">do</span>
+  messages.each { |m| m.update!(<span class="sym">status:</span> <span class="str">"archived"</span>) }
+<span class="kw">end</span></pre>
+          </div>
+        </div>
+        <div class="surface-row">
+          <div class="surface-desc">
+            <h5>batching across jobs</h5>
+            <p>The same coalescing inside ActiveJob, Sidekiq, or a plain Thread. Background work stays invisible until it&#39;s done.
+</p>
+          </div>
+          <div class="surface-code">
+<pre class="code"><span class="tag">Upkeep</span>.batch_global <span class="kw">do</span>
+  <span class="tag">Message</span>.find_each { |m| m.touch }
+<span class="kw">end</span></pre>
+          </div>
+        </div>
+        <div class="surface-row">
+          <div class="surface-desc">
+            <h5>a nudge instead of a push</h5>
+            <p>When you want the cheapest possible update, tell clients &quot;something changed&quot; and let them refetch via a normal HTTP GET.
+</p>
+          </div>
+          <div class="surface-code">
+<pre class="code"><span class="tag">Upkeep</span>.version_bump(<span class="sym">@board</span>)</pre>
+          </div>
+        </div>
+        <div class="surface-row">
+          <div class="surface-desc">
+            <h5>stay silent</h5>
+            <p>Migrations, backfills, audit logs, anything you don&#39;t want to push. The escape hatch is one block.
+</p>
+          </div>
+          <div class="surface-code">
+<pre class="code"><span class="tag">Upkeep</span>.skip_tracking <span class="kw">do</span>
+  <span class="tag">Message</span>.update_all(<span class="sym">status:</span> <span class="str">"migrated"</span>)
+<span class="kw">end</span></pre>
+          </div>
+        </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="refs">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 08</div>
+      <h2 class="s-title">Research-grade foundations</h2>
+      <div class="s-sub">incremental view maintenance for the web</div>
+    </div>
+    <div class="priorart">
+      <div>
+          <p>Upkeep is a materialized-view engine for HTML. Incremental view maintenance and optimistic concurrency control are decades-old database techniques with a deep literature and well-understood performance. We took the shape that databases use to keep derived tables fresh and pointed it at the rendered page.
+</p>
+          <p>The page is a view. The read-set is its defining query. A write is a delta. The render is the row. Every decision in Upkeep follows from that analogy, which is why it holds up at scale.
+</p>
+          <p>The result is a system with strong theoretical guarantees about which fragments need to update, rather than a heuristic about which broadcasts might reach the right client.
+</p>
+      </div>
+      <dl class="refs">
+          <dt>incremental view maintenance</dt>
+          <dd>Gupta &amp; Mumick, Maintenance of Materialized Views <span class="year">1995</span></dd>
+          <dt>streaming dataflow for web apps</dt>
+          <dd>Gjengset et al., Noria: Partial State and Incremental Compute <span class="year">OSDI 2018</span></dd>
+          <dt>optimistic concurrency</dt>
+          <dd>Kung &amp; Robinson, On Optimistic Methods for Concurrency Control <span class="year">1981</span></dd>
+          <dt>statics / dynamics transport</dt>
+          <dd>Phoenix LiveView; Cutout <span class="year">prior work in Elixir / Ruby</span></dd>
+          <dt>two-tier subscription index</dt>
+          <dd>Convex reactor <span class="year">2023</span></dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="who">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 09</div>
+      <h2 class="s-title">Who it&#39;s for</h2>
+      <div class="s-sub">the apps that feel alive</div>
+    </div>
+
+    <div class="bullets">
+        <div class="bullet">
+          <div class="tag">teams shipping</div>
+          <h4>Collaborative SaaS</h4>
+          <p>Kanbans, shared docs, CRMs, dashboards, CMSes. Anywhere a second person on the page is an expected feature and your Turbo-Streams setup has grown into a maintenance burden.
+</p>
+        </div>
+        <div class="bullet">
+          <div class="tag">teams starting</div>
+          <h4>Ex-SPA Rails shops</h4>
+          <p>Teams rebuilding their React front end on Rails who want the velocity of monolithic ERB without giving up the realtime feel their users expect.
+</p>
+        </div>
+        <div class="bullet">
+          <div class="tag">teams growing</div>
+          <h4>Realtime products at scale</h4>
+          <p>Chat, multiplayer tools, live ops consoles. The architecture is designed around the performance walls that hit every reactive system past a few thousand concurrent users.
+</p>
+        </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="install">
+  <div class="wrap">
+    <div class="s-head">
+      <div class="s-num">§ 10</div>
+      <h2 class="s-title">Try it in your app</h2>
+      <div class="s-sub">one bundle install away</div>
+    </div>
+
+    <div class="codepair" style="margin-top:0;">
+        <div class="codecard">
+          <div class="codehead"><span class="filename">Gemfile</span><span class="pill">Ruby</span></div>
+<pre class="code">gem <span class="str">"upkeep"</span>, <span class="sym">"~&gt; 0.1"</span>
+
+<span class="cmt"># or, to track main:</span>
+gem <span class="str">"upkeep"</span>, <span class="sym">github:</span> <span class="str">"upkeep-rb/upkeep"</span></pre>
+        </div>
+        <div class="codecard">
+          <div class="codehead"><span class="filename">bin/rails</span><span class="pill">shell</span></div>
+<pre class="code"><span class="cmt"># bundle, install, migrate</span>
+bundle install
+bin/rails upkeep:install
+bin/rails db:migrate
+
+<span class="cmt"># then in any model you want reactive:</span>
+<span class="cmt">#   include Upkeep::Broadcastable</span></pre>
+        </div>
+    </div>
+
+    <div style="display:flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; align-items: center;">
+        <a href="#" class="btn primary" style="text-decoration:none; padding: 9px 16px; font-size: 13px;">→ get started</a>
+        <a href="#" class="btn ghost" style="text-decoration:none; padding: 9px 16px; font-size: 13px;">read the guide</a>
+        <a href="#" class="btn ghost" style="text-decoration:none; padding: 9px 16px; font-size: 13px;">see example apps</a>
+      <span style="margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);">
+        building something with Upkeep? <a href="#" style="color: var(--orange-ink);">tell us →</a>
+
+      </span>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- ===== FOOTER ===== -->
+<footer class="f">
+  <div class="wrap">
+    <div class="f-row">
+      <div class="f-col">
+        <h6>repo</h6>
+        <a href="#">github.com/upkeep-rb/upkeep</a>
+        <a href="#">issues</a>
+        <a href="#">changelog</a>
+      </div>
+      <div class="f-col">
+        <h6>docs</h6>
+        <a href="#">guide</a>
+        <a href="#">API reference</a>
+        <a href="#">RECIPES.md</a>
+      </div>
+      <div class="f-col">
+        <h6>examples</h6>
+        <a href="#">kanban-ex</a>
+        <a href="#">chat-ex</a>
+        <a href="#">dashboard-ex</a>
+      </div>
+      <div class="f-col">
+        <h6>community</h6>
+        <a href="#">Rails discuss thread</a>
+        <a href="#">matrix chat</a>
+        <a href="#">mailing list</a>
+      </div>
+    </div>
+    <div class="f-bottom">
+      <div>MIT · © 2026 upkeep contributors</div>
+      <div>live UIs for Rails · made for builders</div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
