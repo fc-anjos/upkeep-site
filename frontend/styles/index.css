@@ -29,15 +29,15 @@
     Pattern: clamp(MIN, MIN + (MAX-MIN) * ((100vw - 360px) / (1240 - 360)), MAX)
     Simplified to: clamp(MIN, calc(MIN + (MAX-MIN) * (100vw - 22.5rem) / 55), MAX)
   */
-  --fs-xs:    clamp(0.6875rem, 0.66rem + 0.10vw, 0.75rem);   /* 11 → 12 */
-  --fs-sm:    clamp(0.75rem,  0.72rem + 0.13vw, 0.8125rem);  /* 12 → 13 */
-  --fs-base:  clamp(0.875rem, 0.84rem + 0.18vw, 1rem);       /* 14 → 16 */
-  --fs-md:    clamp(0.9375rem,0.88rem + 0.27vw, 1.125rem);   /* 15 → 18 */
-  --fs-lg:    clamp(1rem,     0.94rem + 0.32vw, 1.25rem);    /* 16 → 20 */
-  --fs-xl:    clamp(1.125rem, 1.04rem + 0.45vw, 1.5rem);     /* 18 → 24 */
-  --fs-2xl:   clamp(1.375rem, 1.20rem + 0.95vw, 2rem);       /* 22 → 32 */
-  --fs-3xl:   clamp(1.75rem,  1.40rem + 1.85vw, 2.75rem);    /* 28 → 44 */
-  --fs-hero:  clamp(2.25rem,  1.50rem + 3.95vw, 4.25rem);    /* 36 → 68 */
+  --fs-xs:    clamp(0.75rem,   0.73rem + 0.10vw, 0.8125rem); /* 12 → 13 */
+  --fs-sm:    clamp(0.8125rem, 0.79rem + 0.13vw, 0.875rem);  /* 13 → 14 */
+  --fs-base:  clamp(1rem,      0.97rem + 0.13vw, 1.0625rem); /* 16 → 17 */
+  --fs-md:    clamp(1.0625rem, 1.02rem + 0.20vw, 1.1875rem); /* 17 → 19 */
+  --fs-lg:    clamp(1.125rem,  1.06rem + 0.32vw, 1.375rem);  /* 18 → 22 */
+  --fs-xl:    clamp(1.25rem,   1.15rem + 0.50vw, 1.625rem);  /* 20 → 26 */
+  --fs-2xl:   clamp(1.625rem,  1.43rem + 0.95vw, 2.25rem);   /* 26 → 36 */
+  --fs-3xl:   clamp(2rem,      1.65rem + 1.73vw, 3rem);      /* 32 → 48 */
+  --fs-hero:  clamp(2.5rem,    1.75rem + 3.91vw, 4.5rem);    /* 40 → 72 */
 
   /* fluid spacing scale */
   --sp-1:  clamp(0.25rem, 0.24rem + 0.05vw, 0.3125rem);
